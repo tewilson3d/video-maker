@@ -212,6 +212,78 @@ func generateCharacterImage(prompt, provider, color string) string {
 	return fmt.Sprintf("https://placehold.co/512x512/%s/ffffff?text=Character+Art", color)
 }
 
+// Video clip generation types
+type VideoClipRequest struct {
+	ProjectID string       `json:"projectId"`
+	Scenes    []SceneInput `json:"scenes"`
+}
+
+type SceneInput struct {
+	ID         string  `json:"id"`
+	Index      int     `json:"index"`
+	StartFrame string  `json:"startFrame"`
+	EndFrame   *string `json:"endFrame"`
+	Narration  string  `json:"narration"`
+	Prompt     string  `json:"prompt"`
+}
+
+type VideoClip struct {
+	SceneIndex  int    `json:"sceneIndex"`
+	VideoURL    string `json:"videoUrl"`
+	PosterURL   string `json:"posterUrl"`
+	Duration    string `json:"duration"`
+	HasEndFrame bool   `json:"hasEndFrame"`
+}
+
+func (s *Server) HandleGenerateVideoClips(w http.ResponseWriter, r *http.Request) {
+	var req VideoClipRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	clips := make([]VideoClip, len(req.Scenes))
+	
+	for i, scene := range req.Scenes {
+		// TODO: Integrate Veo 3 API
+		// 
+		// Veo 3 integration would:
+		// 1. Upload start frame (and end frame if provided)
+		// 2. Send prompt for video generation
+		// 3. Poll for completion
+		// 4. Return video URL
+		//
+		// API call would include:
+		// - scene.StartFrame (image URL or base64)
+		// - scene.EndFrame (optional, for transitions)
+		// - scene.Prompt (text description for video)
+		// - scene.Narration (for context)
+		
+		hasEndFrame := scene.EndFrame != nil && *scene.EndFrame != ""
+		
+		clips[i] = VideoClip{
+			SceneIndex:  scene.Index,
+			VideoURL:    generatePlaceholderVideo(scene.Index),
+			PosterURL:   scene.StartFrame,
+			Duration:    "~5s",
+			HasEndFrame: hasEndFrame,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"clips":   clips,
+		"message": "Video clips generated (placeholder - Veo 3 integration pending)",
+	})
+}
+
+func generatePlaceholderVideo(sceneIndex int) string {
+	// Return a placeholder video URL
+	// In production, this would be the actual Veo 3 generated video
+	// Using a sample video for demo purposes
+	return fmt.Sprintf("https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4#scene=%d", sceneIndex)
+}
+
 func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, characters []Character, characterArt []CharacterArt) []Scene {
 	colors := []string{"1a1a2e", "16213e", "0f3460", "533483", "e94560", "2d4059", "3d5a80", "5c4d7d"}
 	
@@ -338,6 +410,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/projects", s.HandleCreateProject)
 	mux.HandleFunc("GET /api/projects/{id}", s.HandleGetProject)
 	mux.HandleFunc("POST /api/generate-character-art", s.HandleGenerateCharacterArt)
+	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))

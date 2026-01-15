@@ -111,6 +111,24 @@
             </div>
         </div>
 
+        <!-- Video Clips Section -->
+        <section class="video-clips-section">
+            <div class="section-header">
+                <h2>🎬 Video Clips</h2>
+                <button class="btn-generate-video" id="generateClipsBtn">
+                    <span class="btn-text">✨ Generate Video Clips (Veo 3)</span>
+                    <span class="btn-loading" style="display: none;">Generating...</span>
+                </button>
+            </div>
+            <div id="videoClipsGrid" class="video-clips-grid">
+                <div class="video-placeholder">
+                    <span class="placeholder-icon">🎬</span>
+                    <span>Video clips will appear here</span>
+                    <span class="placeholder-hint">Click "Generate Video Clips" to create videos from your keyframes</span>
+                </div>
+            </div>
+        </section>
+
         <footer class="storyboard-footer">
             <div class="timeline">
                 <span class="timeline-label">Timeline Preview</span>
@@ -217,9 +235,129 @@
             alert(`Regenerate scene ${index + 1} - coming soon!`);
         }
 
+        // Video clips generation
+        const videoClips = {};
+
+        document.getElementById('generateClipsBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('generateClipsBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            const grid = document.getElementById('videoClipsGrid');
+
+            // Gather scene data with keyframes
+            const scenes = [];
+            document.querySelectorAll('.scene-card[data-scene-id]').forEach((card, index) => {
+                const sceneId = card.dataset.sceneId;
+                const img = card.querySelector('.scene-image img');
+                const narration = card.querySelector('.scene-narration p')?.textContent || '';
+                const prompt = card.querySelector('.prompt-text')?.textContent || '';
+                
+                scenes.push({
+                    id: sceneId,
+                    index: index,
+                    startFrame: img?.src || '',
+                    endFrame: keyframeData[index]?.endFrame || null,
+                    narration: narration,
+                    prompt: prompt
+                });
+            });
+
+            if (scenes.length === 0) {
+                alert('No scenes to generate videos from');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+
+            // Show loading state
+            grid.innerHTML = scenes.map((s, i) => `
+                <div class="video-clip-card loading" data-scene="${i}">
+                    <div class="video-container">
+                        <div class="video-loading">
+                            <div class="video-loading-spinner"></div>
+                            <span>Generating Scene ${i + 1}...</span>
+                        </div>
+                    </div>
+                    <div class="video-info">
+                        <span class="video-label">Scene ${i + 1}</span>
+                        <span class="video-status">Processing with Veo 3</span>
+                    </div>
+                </div>
+            `).join('');
+
+            try {
+                const response = await fetch('/api/generate-video-clips', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        projectId: '{{.ID}}',
+                        scenes: scenes 
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to generate video clips');
+
+                const data = await response.json();
+
+                // Update grid with results
+                grid.innerHTML = data.clips.map((clip, i) => `
+                    <div class="video-clip-card" data-scene="${clip.sceneIndex}">
+                        <div class="video-container">
+                            <video src="${clip.videoUrl}" poster="${clip.posterUrl}" controls preload="metadata"></video>
+                            <div class="video-overlay">
+                                <button class="btn-icon" onclick="regenerateClip(${clip.sceneIndex})" title="Regenerate">🔄</button>
+                                <button class="btn-icon" onclick="downloadClip('${clip.videoUrl}')" title="Download">⬇️</button>
+                            </div>
+                        </div>
+                        <div class="video-info">
+                            <span class="video-label">Scene ${clip.sceneIndex + 1}</span>
+                            <span class="video-duration">${clip.duration || '~5s'}</span>
+                        </div>
+                        <div class="video-keyframes">
+                            ${clip.hasEndFrame ? '<span class="keyframe-badge">🎬 Start → End</span>' : '<span class="keyframe-badge">🖼️ Single Frame</span>'}
+                        </div>
+                    </div>
+                `).join('');
+
+                // Store clips data
+                data.clips.forEach(clip => {
+                    videoClips[clip.sceneIndex] = clip;
+                });
+
+            } catch (err) {
+                alert('Error generating video clips: ' + err.message);
+                grid.innerHTML = `
+                    <div class="video-placeholder error">
+                        <span class="placeholder-icon">⚠️</span>
+                        <span>Failed to generate video clips</span>
+                        <span class="placeholder-hint">${err.message}</span>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+
+        function regenerateClip(sceneIndex) {
+            alert(`Regenerate clip for scene ${sceneIndex + 1} - coming soon!`);
+        }
+
+        function downloadClip(url) {
+            window.open(url, '_blank');
+        }
+
         // Placeholder for future functionality
         document.getElementById('generateBtn').addEventListener('click', () => {
-            alert('Video generation coming soon!');
+            // This will compile all clips into final video
+            if (Object.keys(videoClips).length === 0) {
+                alert('Please generate video clips first');
+                return;
+            }
+            alert('Compiling final video from clips - coming soon!');
         });
         
         document.getElementById('exportBtn').addEventListener('click', () => {
