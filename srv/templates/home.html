@@ -448,12 +448,34 @@
             </div>
         </div>
 
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+
         <footer>
             <p>Powered by AI • Create amazing video stories in minutes</p>
         </footer>
     </div>
 
     <script>
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(toast);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.add('toast-fade-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
         // Google API Configuration
         // Load from localStorage or prompt user to configure
         let GOOGLE_CLIENT_ID = localStorage.getItem('googleClientId') || '';
@@ -1449,9 +1471,9 @@ Story context: ${storyContext}`;
                 
                 const result = await response.json();
                 
-                alert(`Project saved successfully!\n\nLocation: ${result.projectPath}\n\nSaved:\n- project.json\n- ${result.imageCount} images\n- ${result.videoCount || 0} videos`);
+                showToast(`Project saved! ${result.imageCount} images saved to ${result.projectPath}`, 'success');
             } catch (err) {
-                alert('Error saving project: ' + err.message);
+                showToast('Error saving project: ' + err.message, 'error');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -1498,9 +1520,9 @@ Story context: ${storyContext}`;
                     });
                 }
                 
-                alert(`Project loaded successfully!\n\nLoaded from: ${projectPath}`);
+                showToast(`Project loaded from ${projectPath}`, 'success');
             } catch (err) {
-                alert('Error loading project: ' + err.message);
+                showToast('Error loading project: ' + err.message, 'error');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
