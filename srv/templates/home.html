@@ -1162,8 +1162,8 @@
             // Get shot sequence if still in input mode
             const shotSequence = document.getElementById('shotSequenceText')?.value.trim() || '';
 
-            // Get image provider
-            const imageProvider = document.getElementById('imageProvider').value;
+            // Get image provider (gemini is now the default)
+            const imageProvider = 'gemini';
 
             return {
                 storyPrompt,
@@ -1233,10 +1233,7 @@
                 document.getElementById('shotSequenceText').value = project.shotSequence;
             }
 
-            // Load image provider
-            if (project.imageProvider) {
-                document.getElementById('imageProvider').value = project.imageProvider;
-            }
+            // Image provider is now always gemini, no need to load
         }
 
         function addCharacterCard(description = '') {
@@ -1313,7 +1310,7 @@
                         characters,
                         characterArt,
                         keyframes,
-                        imageProvider: document.getElementById('imageProvider').value
+                        imageProvider: 'gemini'
                     })
                 });
                 
