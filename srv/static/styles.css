@@ -521,20 +521,10 @@ footer {
     margin-bottom: 0.75rem;
 }
 
-.character-name {
-    flex: 1;
-    padding: 0.5rem 0.75rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-primary);
-    font-size: 0.95rem;
+.character-label {
     font-weight: 600;
-}
-
-.character-name:focus {
-    outline: none;
-    border-color: var(--accent);
+    color: var(--accent);
+    font-size: 0.9rem;
 }
 
 .keyframe-number {

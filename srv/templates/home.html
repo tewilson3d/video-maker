@@ -41,12 +41,12 @@
                     <div id="characterPrompts" class="character-list">
                         <div class="prompt-card character-card" data-index="0">
                             <div class="character-header">
-                                <input type="text" class="character-name" placeholder="Character Name" value="">
+                                <span class="character-label">Character 1</span>
                                 <button type="button" class="btn-icon-small btn-remove-character" title="Remove">✕</button>
                             </div>
                             <textarea 
                                 class="character-description"
-                                placeholder="Describe this character's appearance, personality, role in the story..."
+                                placeholder="e.g., 'Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek. She's determined but haunted by her past.'"
                                 rows="3"
                             ></textarea>
                         </div>
@@ -120,12 +120,12 @@
             card.dataset.index = characterCount;
             card.innerHTML = `
                 <div class="character-header">
-                    <input type="text" class="character-name" placeholder="Character Name" value="">
+                    <span class="character-label">Character ${characterCount}</span>
                     <button type="button" class="btn-icon-small btn-remove-character" title="Remove">✕</button>
                 </div>
                 <textarea 
                     class="character-description"
-                    placeholder="Describe this character's appearance, personality, role in the story..."
+                    placeholder="e.g., 'Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek. She's determined but haunted by her past.'"
                     rows="3"
                 ></textarea>
             `;
@@ -164,6 +164,7 @@
                 const card = e.target.closest('.character-card');
                 if (characterContainer.children.length > 1) {
                     card.remove();
+                    renumberCharacters();
                     updateRemoveButtons();
                 }
             }
@@ -198,6 +199,14 @@
             keyframeCount = keyframes.length;
         }
 
+        function renumberCharacters() {
+            const characters = characterContainer.querySelectorAll('.character-card');
+            characters.forEach((ch, i) => {
+                ch.querySelector('.character-label').textContent = `Character ${i + 1}`;
+            });
+            characterCount = characters.length;
+        }
+
         // Initial state
         updateRemoveButtons();
 
@@ -216,10 +225,9 @@
 
             const characters = [];
             document.querySelectorAll('.character-card').forEach(card => {
-                const name = card.querySelector('.character-name').value.trim();
                 const description = card.querySelector('.character-description').value.trim();
-                if (name || description) {
-                    characters.push({ name, description });
+                if (description) {
+                    characters.push({ description });
                 }
             });
 
