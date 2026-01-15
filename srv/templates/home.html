@@ -265,6 +265,13 @@
             </div>
         </main>
 
+        <!-- Project Path Setting -->
+        <div class="project-path-bar">
+            <label>📁 Project Folder:</label>
+            <input type="text" id="projectPathInput" placeholder="/path/to/projects" value="">
+            <button type="button" class="btn-small" onclick="saveProjectPath()" title="Save path">✔</button>
+        </div>
+
         <!-- Bottom Controls -->
         <div class="bottom-controls">
             <div class="storyboard-info">
@@ -302,6 +309,25 @@
         let googleUser = null;
         let accessToken = null;
         let currentAuthTab = 'apikey';
+
+        // Global project path
+        let PROJECT_PATH = localStorage.getItem('projectPath') || '/home/exedev/video-maker/projects';
+        
+        // Initialize project path input
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('projectPathInput').value = PROJECT_PATH;
+        });
+
+        function saveProjectPath() {
+            const path = document.getElementById('projectPathInput').value.trim();
+            if (!path) {
+                alert('Please enter a valid path');
+                return;
+            }
+            PROJECT_PATH = path;
+            localStorage.setItem('projectPath', path);
+            alert('Project path saved: ' + path);
+        }
 
         // Tab switching for setup modal
         function showTab(tabName) {
@@ -1074,9 +1100,15 @@
 
         // Save Project
         document.getElementById('saveProjectBtn').addEventListener('click', async () => {
+            if (!PROJECT_PATH) {
+                alert('Please set a project folder path first');
+                return;
+            }
+
             const projectData = gatherProjectData();
+            projectData.projectPath = PROJECT_PATH;
             
-            // Send to server to save (server will save images to disk)
+            // Send to server to save (server will save images to disk as PNG)
             try {
                 const response = await fetch('/api/save-project', {
                     method: 'POST',
@@ -1088,26 +1120,40 @@
                 
                 const result = await response.json();
                 
-                // Also download the JSON file
-                const jsonBlob = new Blob([JSON.stringify(result.project, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(jsonBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `video-project-${result.projectId}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                alert(`Project saved!\n\nProject ID: ${result.projectId}\nImages saved to: ${result.imagePath}\nJSON file downloaded.`);
+                alert(`Project saved!\n\nProject ID: ${result.projectId}\nLocation: ${result.projectDir}\nImages: ${result.savedImages?.length || 0} PNG files\nJSON: project.json`);
             } catch (err) {
                 alert('Error saving project: ' + err.message);
             }
         });
 
         // Load Project
-        document.getElementById('loadProjectBtn').addEventListener('click', () => {
-            document.getElementById('loadProjectInput').click();
+        document.getElementById('loadProjectBtn').addEventListener('click', async () => {
+            if (!PROJECT_PATH) {
+                alert('Please set a project folder path first');
+                return;
+            }
+
+            // Ask for project ID or show list
+            const projectId = prompt('Enter project ID to load (e.g., proj_1234567890):');
+            if (!projectId) return;
+
+            try {
+                const response = await fetch(`/api/load-project?path=${encodeURIComponent(PROJECT_PATH)}&id=${encodeURIComponent(projectId)}`);
+                
+                if (!response.ok) {
+                    const err = await response.text();
+                    throw new Error(err);
+                }
+                
+                const project = await response.json();
+                loadProjectData(project);
+                alert('Project loaded successfully!');
+            } catch (err) {
+                alert('Error loading project: ' + err.message);
+            }
         });
 
+        // Keep file input as backup
         document.getElementById('loadProjectInput').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;

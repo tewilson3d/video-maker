@@ -1412,6 +1412,49 @@ footer {
     gap: 0.5rem;
 }
 
+/* Project Path Bar */
+.project-path-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1rem;
+}
+
+.project-path-bar label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.project-path-bar input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: monospace;
+}
+
+.project-path-bar input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.project-path-bar .btn-small {
+    padding: 0.5rem 0.75rem;
+    background: var(--accent);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+}
+
 .storyboard-info {
     flex: 1;
     display: flex;
