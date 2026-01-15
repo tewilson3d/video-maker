@@ -7,46 +7,102 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="container">
+    <div class="container full-width">
         <header>
             <h1>🎬 Video Maker</h1>
             <p class="subtitle">Transform your ideas into visual stories</p>
         </header>
 
-        <main>
-            <form id="createForm" class="create-form">
-                <div class="form-group">
-                    <label for="storyPrompt">Story Prompt</label>
-                    <textarea 
-                        id="storyPrompt" 
-                        name="storyPrompt" 
-                        placeholder="Describe your story... e.g., 'A brave knight discovers a hidden dragon's lair in the mountains and must decide whether to fight or befriend the ancient creature.'"
-                        rows="6"
-                        required
-                    ></textarea>
-                    <span class="hint">Be descriptive! Include characters, setting, mood, and key events.</span>
+        <main class="prompt-layout">
+            <!-- Left Column: Story + Characters -->
+            <div class="left-column">
+                <!-- Story Prompt -->
+                <div class="prompt-section">
+                    <div class="section-header">
+                        <h2>📝 Story Prompt</h2>
+                    </div>
+                    <div class="prompt-card">
+                        <textarea 
+                            id="storyPrompt" 
+                            name="storyPrompt" 
+                            placeholder="Describe your story... e.g., 'A brave knight discovers a hidden dragon's lair in the mountains and must decide whether to fight or befriend the ancient creature.'"
+                            rows="6"
+                            required
+                        ></textarea>
+                        <span class="hint">Include setting, mood, conflict, and key events.</span>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="imageStyle">Visual Style</label>
-                    <select id="imageStyle" name="imageStyle">
-                        <option value="cinematic">Cinematic / Realistic</option>
-                        <option value="anime">Anime / Manga</option>
-                        <option value="watercolor">Watercolor Painting</option>
-                        <option value="3d-render">3D Render</option>
-                        <option value="comic">Comic Book</option>
-                        <option value="fantasy">Fantasy Art</option>
-                        <option value="noir">Film Noir</option>
-                        <option value="pixel">Pixel Art</option>
-                    </select>
+                <!-- Character Prompts -->
+                <div class="prompt-section">
+                    <div class="section-header">
+                        <h2>👤 Character Prompts</h2>
+                    </div>
+                    <div id="characterPrompts" class="character-list">
+                        <div class="prompt-card character-card" data-index="0">
+                            <div class="character-header">
+                                <input type="text" class="character-name" placeholder="Character Name" value="">
+                                <button type="button" class="btn-icon-small btn-remove-character" title="Remove">✕</button>
+                            </div>
+                            <textarea 
+                                class="character-description"
+                                placeholder="Describe this character's appearance, personality, role in the story..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add" id="addCharacterBtn">
+                        <span>+</span> Add Character
+                    </button>
                 </div>
+            </div>
 
-                <button type="submit" class="btn-primary" id="submitBtn">
-                    <span class="btn-text">Generate Storyboard</span>
-                    <span class="btn-loading" style="display: none;">Creating...</span>
-                </button>
-            </form>
+            <!-- Right Column: Keyframes -->
+            <div class="right-column">
+                <div class="prompt-section">
+                    <div class="section-header">
+                        <h2>🎬 Storyboard Keyframes</h2>
+                    </div>
+                    <div id="keyframePrompts" class="keyframe-list">
+                        <div class="prompt-card keyframe-card" data-index="0">
+                            <div class="keyframe-header">
+                                <span class="keyframe-number">Scene 1</span>
+                                <button type="button" class="btn-icon-small btn-remove-keyframe" title="Remove">✕</button>
+                            </div>
+                            <textarea 
+                                class="keyframe-description"
+                                placeholder="Describe this scene: what's happening, who's in frame, camera angle, mood..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add" id="addKeyframeBtn">
+                        <span>+</span> Add Keyframe
+                    </button>
+                </div>
+            </div>
         </main>
+
+        <!-- Bottom Controls -->
+        <div class="bottom-controls">
+            <div class="form-group style-select">
+                <label for="imageStyle">Visual Style</label>
+                <select id="imageStyle" name="imageStyle">
+                    <option value="cinematic">Cinematic / Realistic</option>
+                    <option value="anime">Anime / Manga</option>
+                    <option value="watercolor">Watercolor Painting</option>
+                    <option value="3d-render">3D Render</option>
+                    <option value="comic">Comic Book</option>
+                    <option value="fantasy">Fantasy Art</option>
+                    <option value="noir">Film Noir</option>
+                    <option value="pixel">Pixel Art</option>
+                </select>
+            </div>
+            <button type="button" class="btn-primary" id="submitBtn">
+                <span class="btn-text">Generate Storyboard</span>
+                <span class="btn-loading" style="display: none;">Creating...</span>
+            </button>
+        </div>
 
         <footer>
             <p>Powered by AI • Create amazing video stories in minutes</p>
@@ -54,13 +110,127 @@
     </div>
 
     <script>
-        document.getElementById('createForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Character prompt management
+        let characterCount = 1;
+        const characterContainer = document.getElementById('characterPrompts');
+        
+        document.getElementById('addCharacterBtn').addEventListener('click', () => {
+            const card = document.createElement('div');
+            card.className = 'prompt-card character-card';
+            card.dataset.index = characterCount;
+            card.innerHTML = `
+                <div class="character-header">
+                    <input type="text" class="character-name" placeholder="Character Name" value="">
+                    <button type="button" class="btn-icon-small btn-remove-character" title="Remove">✕</button>
+                </div>
+                <textarea 
+                    class="character-description"
+                    placeholder="Describe this character's appearance, personality, role in the story..."
+                    rows="3"
+                ></textarea>
+            `;
+            characterContainer.appendChild(card);
+            characterCount++;
+            updateRemoveButtons();
+        });
+
+        // Keyframe prompt management
+        let keyframeCount = 1;
+        const keyframeContainer = document.getElementById('keyframePrompts');
+        
+        document.getElementById('addKeyframeBtn').addEventListener('click', () => {
+            keyframeCount++;
+            const card = document.createElement('div');
+            card.className = 'prompt-card keyframe-card';
+            card.dataset.index = keyframeCount - 1;
+            card.innerHTML = `
+                <div class="keyframe-header">
+                    <span class="keyframe-number">Scene ${keyframeCount}</span>
+                    <button type="button" class="btn-icon-small btn-remove-keyframe" title="Remove">✕</button>
+                </div>
+                <textarea 
+                    class="keyframe-description"
+                    placeholder="Describe this scene: what's happening, who's in frame, camera angle, mood..."
+                    rows="3"
+                ></textarea>
+            `;
+            keyframeContainer.appendChild(card);
+            updateRemoveButtons();
+        });
+
+        // Remove handlers (delegated)
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-remove-character')) {
+                const card = e.target.closest('.character-card');
+                if (characterContainer.children.length > 1) {
+                    card.remove();
+                    updateRemoveButtons();
+                }
+            }
+            if (e.target.classList.contains('btn-remove-keyframe')) {
+                const card = e.target.closest('.keyframe-card');
+                if (keyframeContainer.children.length > 1) {
+                    card.remove();
+                    renumberKeyframes();
+                    updateRemoveButtons();
+                }
+            }
+        });
+
+        function updateRemoveButtons() {
+            // Hide remove button if only one item
+            const charButtons = characterContainer.querySelectorAll('.btn-remove-character');
+            charButtons.forEach(btn => {
+                btn.style.visibility = characterContainer.children.length > 1 ? 'visible' : 'hidden';
+            });
             
+            const keyButtons = keyframeContainer.querySelectorAll('.btn-remove-keyframe');
+            keyButtons.forEach(btn => {
+                btn.style.visibility = keyframeContainer.children.length > 1 ? 'visible' : 'hidden';
+            });
+        }
+
+        function renumberKeyframes() {
+            const keyframes = keyframeContainer.querySelectorAll('.keyframe-card');
+            keyframes.forEach((kf, i) => {
+                kf.querySelector('.keyframe-number').textContent = `Scene ${i + 1}`;
+            });
+            keyframeCount = keyframes.length;
+        }
+
+        // Initial state
+        updateRemoveButtons();
+
+        // Form submission
+        document.getElementById('submitBtn').addEventListener('click', async () => {
             const btn = document.getElementById('submitBtn');
             const btnText = btn.querySelector('.btn-text');
             const btnLoading = btn.querySelector('.btn-loading');
             
+            // Gather data
+            const storyPrompt = document.getElementById('storyPrompt').value;
+            if (!storyPrompt.trim()) {
+                alert('Please enter a story prompt');
+                return;
+            }
+
+            const characters = [];
+            document.querySelectorAll('.character-card').forEach(card => {
+                const name = card.querySelector('.character-name').value.trim();
+                const description = card.querySelector('.character-description').value.trim();
+                if (name || description) {
+                    characters.push({ name, description });
+                }
+            });
+
+            const keyframes = [];
+            document.querySelectorAll('.keyframe-card').forEach(card => {
+                const description = card.querySelector('.keyframe-description').value.trim();
+                if (description) {
+                    keyframes.push({ description });
+                }
+            });
+
             btn.disabled = true;
             btnText.style.display = 'none';
             btnLoading.style.display = 'inline';
@@ -70,8 +240,10 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        storyPrompt: document.getElementById('storyPrompt').value,
-                        imageStyle: document.getElementById('imageStyle').value
+                        storyPrompt,
+                        imageStyle: document.getElementById('imageStyle').value,
+                        characters,
+                        keyframes
                     })
                 });
                 

@@ -36,6 +36,10 @@ body {
     flex-direction: column;
 }
 
+.container.full-width {
+    max-width: 1600px;
+}
+
 .storyboard-container {
     max-width: 1400px;
 }
@@ -438,7 +442,208 @@ footer {
     border-color: var(--accent);
 }
 
+/* Prompt Layout (Home Page) */
+.prompt-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    flex: 1;
+}
+
+.left-column,
+.right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.prompt-section {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+}
+
+.section-header {
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.prompt-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.prompt-card:last-child {
+    margin-bottom: 0;
+}
+
+.prompt-card textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.prompt-card textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* Character Cards */
+.character-list,
+.keyframe-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.character-header,
+.keyframe-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.character-name {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.character-name:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.keyframe-number {
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 0.9rem;
+}
+
+.btn-icon-small {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    margin-left: 0.5rem;
+}
+
+.btn-icon-small:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn-add {
+    width: 100%;
+    padding: 0.75rem;
+    background: transparent;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.btn-add:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.btn-add span:first-child {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* Bottom Controls */
+.bottom-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.bottom-controls .style-select {
+    flex: 1;
+    max-width: 300px;
+    margin-bottom: 0;
+}
+
+.bottom-controls .btn-primary {
+    flex: none;
+    width: auto;
+    padding: 1rem 3rem;
+}
+
+/* Scrollbar styling */
+.character-list::-webkit-scrollbar,
+.keyframe-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.character-list::-webkit-scrollbar-track,
+.keyframe-list::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+    border-radius: 3px;
+}
+
+.character-list::-webkit-scrollbar-thumb,
+.keyframe-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.character-list::-webkit-scrollbar-thumb:hover,
+.keyframe-list::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
+
 /* Responsive */
+@media (max-width: 1024px) {
+    .prompt-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
@@ -455,5 +660,14 @@ footer {
     
     .storyboard-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .bottom-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .bottom-controls .style-select {
+        max-width: none;
     }
 }

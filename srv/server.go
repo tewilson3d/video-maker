@@ -26,10 +26,21 @@ type Server struct {
 }
 
 type Project struct {
-	ID          string   `json:"id"`
-	StoryPrompt string   `json:"storyPrompt"`
-	ImageStyle  string   `json:"imageStyle"`
-	Scenes      []Scene  `json:"scenes"`
+	ID          string      `json:"id"`
+	StoryPrompt string      `json:"storyPrompt"`
+	ImageStyle  string      `json:"imageStyle"`
+	Characters  []Character `json:"characters"`
+	Keyframes   []Keyframe  `json:"keyframes"`
+	Scenes      []Scene     `json:"scenes"`
+}
+
+type Character struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type Keyframe struct {
+	Description string `json:"description"`
 }
 
 type Scene struct {
@@ -81,8 +92,10 @@ func (s *Server) HandleStoryboard(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) HandleCreateProject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		StoryPrompt string `json:"storyPrompt"`
-		ImageStyle  string `json:"imageStyle"`
+		StoryPrompt string      `json:"storyPrompt"`
+		ImageStyle  string      `json:"imageStyle"`
+		Characters  []Character `json:"characters"`
+		Keyframes   []Keyframe  `json:"keyframes"`
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -93,13 +106,17 @@ func (s *Server) HandleCreateProject(w http.ResponseWriter, r *http.Request) {
 	// Generate a simple project ID
 	projectID := fmt.Sprintf("proj_%d", len(s.projects)+1)
 	
-	// For now, create mock scenes based on the prompt
+	// For now, create mock scenes based on keyframes or generate defaults
 	// Later this will call AI APIs
+	scenes := generateScenesFromKeyframes(req.Keyframes, req.StoryPrompt)
+	
 	project := &Project{
 		ID:          projectID,
 		StoryPrompt: req.StoryPrompt,
 		ImageStyle:  req.ImageStyle,
-		Scenes:      generateMockScenes(req.StoryPrompt),
+		Characters:  req.Characters,
+		Keyframes:   req.Keyframes,
+		Scenes:      scenes,
 	}
 	
 	s.mu.Lock()
@@ -129,12 +146,29 @@ func (s *Server) HandleGetProject(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(project)
 }
 
-func generateMockScenes(prompt string) []Scene {
-	// Generate placeholder scenes - will be replaced with AI later
+func generateScenesFromKeyframes(keyframes []Keyframe, storyPrompt string) []Scene {
+	colors := []string{"1a1a2e", "16213e", "0f3460", "533483", "e94560", "2d4059", "3d5a80", "5c4d7d"}
+	
+	// If keyframes provided, use them
+	if len(keyframes) > 0 {
+		scenes := make([]Scene, len(keyframes))
+		for i, kf := range keyframes {
+			colorIdx := i % len(colors)
+			scenes[i] = Scene{
+				ID:          fmt.Sprintf("scene_%d", i+1),
+				Narration:   kf.Description,
+				ImagePrompt: kf.Description,
+				ImageURL:    fmt.Sprintf("https://placehold.co/512x512/%s/ffffff?text=Scene+%d", colors[colorIdx], i+1),
+			}
+		}
+		return scenes
+	}
+	
+	// Default scenes if no keyframes
 	return []Scene{
 		{
 			ID:          "scene_1",
-			Narration:   "Opening scene: " + truncate(prompt, 50) + "...",
+			Narration:   "Opening scene: " + truncate(storyPrompt, 50) + "...",
 			ImagePrompt: "A cinematic opening shot",
 			ImageURL:    "https://placehold.co/512x512/1a1a2e/ffffff?text=Scene+1",
 		},
