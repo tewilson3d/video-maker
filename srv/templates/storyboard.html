@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storyboard - Video Maker</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container storyboard-container">
+        <header class="storyboard-header">
+            <a href="/" class="back-link">← New Project</a>
+            <h1>🎬 Storyboard</h1>
+            <div class="header-actions">
+                <button class="btn-secondary" id="exportBtn">Export</button>
+                <button class="btn-primary" id="generateBtn">Generate Video</button>
+            </div>
+        </header>
+
+        <div class="project-info">
+            <div class="info-item">
+                <span class="info-label">Story:</span>
+                <span class="info-value">{{.StoryPrompt}}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Style:</span>
+                <span class="info-value style-badge">{{.ImageStyle}}</span>
+            </div>
+        </div>
+
+        <main class="storyboard-grid">
+            {{range $index, $scene := .Scenes}}
+            <div class="scene-card" data-scene-id="{{$scene.ID}}">
+                <div class="scene-number">Scene {{$index | plus1}}</div>
+                <div class="scene-image">
+                    <img src="{{$scene.ImageURL}}" alt="Scene {{$index | plus1}}">
+                    <div class="image-overlay">
+                        <button class="btn-icon" title="Regenerate Image">🔄</button>
+                        <button class="btn-icon" title="Edit Prompt">✏️</button>
+                    </div>
+                </div>
+                <div class="scene-content">
+                    <div class="scene-narration">
+                        <label>Narration</label>
+                        <p>{{$scene.Narration}}</p>
+                    </div>
+                    <div class="scene-prompt">
+                        <label>Image Prompt</label>
+                        <p class="prompt-text">{{$scene.ImagePrompt}}</p>
+                    </div>
+                </div>
+                <div class="scene-actions">
+                    <button class="btn-small" title="Move Up">↑</button>
+                    <button class="btn-small" title="Move Down">↓</button>
+                    <button class="btn-small btn-danger" title="Delete">🗑️</button>
+                </div>
+            </div>
+            {{end}}
+            
+            <div class="scene-card add-scene-card">
+                <button class="add-scene-btn" id="addSceneBtn">
+                    <span class="add-icon">+</span>
+                    <span>Add Scene</span>
+                </button>
+            </div>
+        </main>
+
+        <footer class="storyboard-footer">
+            <div class="timeline">
+                <span class="timeline-label">Timeline Preview</span>
+                <div class="timeline-track">
+                    {{range $index, $scene := .Scenes}}
+                    <div class="timeline-item" style="background-image: url('{{$scene.ImageURL}}')"></div>
+                    {{end}}
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Placeholder for future functionality
+        document.getElementById('generateBtn').addEventListener('click', () => {
+            alert('Video generation coming soon!');
+        });
+        
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            alert('Export functionality coming soon!');
+        });
+        
+        document.getElementById('addSceneBtn').addEventListener('click', () => {
+            alert('Add scene functionality coming soon!');
+        });
+    </script>
+</body>
+</html>

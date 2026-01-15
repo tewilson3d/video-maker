@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Maker - Create Your Story</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 Video Maker</h1>
+            <p class="subtitle">Transform your ideas into visual stories</p>
+        </header>
+
+        <main>
+            <form id="createForm" class="create-form">
+                <div class="form-group">
+                    <label for="storyPrompt">Story Prompt</label>
+                    <textarea 
+                        id="storyPrompt" 
+                        name="storyPrompt" 
+                        placeholder="Describe your story... e.g., 'A brave knight discovers a hidden dragon's lair in the mountains and must decide whether to fight or befriend the ancient creature.'"
+                        rows="6"
+                        required
+                    ></textarea>
+                    <span class="hint">Be descriptive! Include characters, setting, mood, and key events.</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="imageStyle">Visual Style</label>
+                    <select id="imageStyle" name="imageStyle">
+                        <option value="cinematic">Cinematic / Realistic</option>
+                        <option value="anime">Anime / Manga</option>
+                        <option value="watercolor">Watercolor Painting</option>
+                        <option value="3d-render">3D Render</option>
+                        <option value="comic">Comic Book</option>
+                        <option value="fantasy">Fantasy Art</option>
+                        <option value="noir">Film Noir</option>
+                        <option value="pixel">Pixel Art</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary" id="submitBtn">
+                    <span class="btn-text">Generate Storyboard</span>
+                    <span class="btn-loading" style="display: none;">Creating...</span>
+                </button>
+            </form>
+        </main>
+
+        <footer>
+            <p>Powered by AI • Create amazing video stories in minutes</p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            
+            try {
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        storyPrompt: document.getElementById('storyPrompt').value,
+                        imageStyle: document.getElementById('imageStyle').value
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to create project');
+                
+                const data = await response.json();
+                window.location.href = data.redirect;
+            } catch (err) {
+                alert('Error creating project: ' + err.message);
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
