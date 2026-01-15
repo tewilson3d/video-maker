@@ -21,6 +21,39 @@
                             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
                             <span>Sign in with Google</span>
                         </button>
+                        <button id="configureOAuthBtn" class="btn-configure" title="Configure Google OAuth">⚙️</button>
+                    </div>
+                    
+                    <!-- OAuth Setup Modal -->
+                    <div id="oauthSetupModal" class="modal-overlay" style="display: none;">
+                        <div class="modal-content oauth-setup-modal">
+                            <div class="modal-header">
+                                <h3>⚙️ Configure Google OAuth</h3>
+                                <button class="modal-close" onclick="closeOAuthSetup()">✕</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="setup-steps">
+                                    <h4>Setup Instructions:</h4>
+                                    <ol>
+                                        <li>Go to <a href="https://console.cloud.google.com/apis/credentials?project=service-infrastructure-382819" target="_blank">Google Cloud Console Credentials</a></li>
+                                        <li>Click <strong>"+ CREATE CREDENTIALS"</strong> → <strong>"OAuth client ID"</strong></li>
+                                        <li>If prompted, configure OAuth consent screen (External, add your email)</li>
+                                        <li>Select <strong>"Web application"</strong></li>
+                                        <li>Add Authorized JavaScript origin: <code>https://video-maker.exe.xyz:8000</code></li>
+                                        <li>Click <strong>Create</strong> and copy the Client ID</li>
+                                    </ol>
+                                </div>
+                                <div class="client-id-input">
+                                    <label>Paste your OAuth Client ID:</label>
+                                    <input type="text" id="clientIdInput" placeholder="xxxxx.apps.googleusercontent.com">
+                                    <span class="hint">Looks like: 123456789-abc...xyz.apps.googleusercontent.com</span>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn-secondary" onclick="closeOAuthSetup()">Cancel</button>
+                                <button class="btn-primary" onclick="saveClientId()">Save & Connect</button>
+                            </div>
+                        </div>
                     </div>
                     <div id="userSection" class="user-section" style="display: none;">
                         <img id="userAvatar" src="" alt="" class="user-avatar">
@@ -239,9 +272,8 @@
 
     <script>
         // Google OAuth Configuration
-        // You'll need to create a project at https://console.cloud.google.com
-        // and enable the Google Identity Services API
-        const GOOGLE_CLIENT_ID = ''; // Add your Google OAuth Client ID here
+        // Load from localStorage or prompt user to configure
+        let GOOGLE_CLIENT_ID = localStorage.getItem('googleClientId') || '';
         
         let googleUser = null;
         let accessToken = null;
@@ -251,9 +283,9 @@
             if (!GOOGLE_CLIENT_ID) {
                 console.warn('Google Client ID not configured. Set GOOGLE_CLIENT_ID in the script.');
                 document.getElementById('loginSection').innerHTML = `
-                    <div class="auth-warning">
+                    <div class="auth-warning" onclick="document.getElementById('oauthSetupModal').style.display='flex'" style="cursor:pointer">
                         <span>⚠️</span>
-                        <span>Google OAuth not configured</span>
+                        <span>Google OAuth not configured - Click to setup</span>
                     </div>
                 `;
                 return;
@@ -361,6 +393,30 @@
                 google.accounts.id.disableAutoSelect();
             }
         });
+
+        // Configure OAuth button
+        document.getElementById('configureOAuthBtn')?.addEventListener('click', () => {
+            document.getElementById('oauthSetupModal').style.display = 'flex';
+            document.getElementById('clientIdInput').value = GOOGLE_CLIENT_ID || '';
+        });
+
+        function closeOAuthSetup() {
+            document.getElementById('oauthSetupModal').style.display = 'none';
+        }
+
+        function saveClientId() {
+            const clientId = document.getElementById('clientIdInput').value.trim();
+            if (!clientId || !clientId.includes('.apps.googleusercontent.com')) {
+                alert('Please enter a valid OAuth Client ID (ends with .apps.googleusercontent.com)');
+                return;
+            }
+            GOOGLE_CLIENT_ID = clientId;
+            localStorage.setItem('googleClientId', clientId);
+            closeOAuthSetup();
+            
+            // Reload to initialize with new client ID
+            window.location.reload();
+        }
 
         // Initialize on load
         window.addEventListener('load', () => {
