@@ -440,32 +440,6 @@
             </div>
         </div>
 
-        <!-- Folder Browser Modal -->
-        <div id="folderBrowserModal" class="modal-overlay" style="display: none;">
-            <div class="modal-content folder-browser-modal">
-                <div class="modal-header">
-                    <h3>📂 Browse Folders</h3>
-                    <button class="modal-close" onclick="closeFolderBrowser()">✕</button>
-                </div>
-                <div class="modal-body">
-                    <div class="folder-browser-path">
-                        <label>Current Path:</label>
-                        <input type="text" id="browserCurrentPath" readonly>
-                    </div>
-                    <div class="folder-browser-actions">
-                        <button class="btn-sm" onclick="createNewFolder()">➕ New Folder</button>
-                    </div>
-                    <div class="folder-browser-list" id="folderList">
-                        <div class="folder-loading">Loading...</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-secondary" onclick="closeFolderBrowser()">Cancel</button>
-                    <button class="btn-primary" onclick="selectCurrentFolder()">Select This Folder</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Toast Notifications -->
         <div id="toastContainer" class="toast-container"></div>
 
@@ -665,106 +639,34 @@
             saveSettings();
         }
 
-        // Folder Browser
-        let currentBrowserPath = '/home/exedev/video-maker/projects';
-        let folderBrowserCallback = null;
+        // Local Folder Browser using File System Access API
+        let localDirectoryHandle = null;
 
-        function openFolderBrowser(callback) {
-            folderBrowserCallback = callback || null;
-            currentBrowserPath = PROJECT_PATH || '/home/exedev/video-maker/projects';
-            document.getElementById('folderBrowserModal').style.display = 'flex';
-            loadFolderContents(currentBrowserPath);
-        }
-
-        function closeFolderBrowser() {
-            document.getElementById('folderBrowserModal').style.display = 'none';
-            folderBrowserCallback = null;
-        }
-
-        async function loadFolderContents(path) {
-            const folderList = document.getElementById('folderList');
-            folderList.innerHTML = '<div class="folder-loading">Loading...</div>';
-            document.getElementById('browserCurrentPath').value = path;
-            
+        async function openFolderBrowser() {
             try {
-                const response = await fetch(`/api/browse-folders?path=${encodeURIComponent(path)}`);
-                if (!response.ok) throw new Error('Failed to load folders');
-                
-                const data = await response.json();
-                currentBrowserPath = data.currentPath;
-                document.getElementById('browserCurrentPath').value = data.currentPath;
-                
-                if (data.folders.length === 0) {
-                    folderList.innerHTML = '<div class="folder-empty">No folders found</div>';
+                // Check if File System Access API is supported
+                if (!('showDirectoryPicker' in window)) {
+                    showToast('Your browser does not support folder selection. Please use Chrome or Edge.', 'error');
                     return;
                 }
-                
-                folderList.innerHTML = data.folders.map(folder => `
-                    <div class="folder-item ${folder.hasProjectJson ? 'has-project' : ''}" 
-                         onclick="${folder.name === '..' ? 'navigateToParent()' : `navigateToFolder('${folder.path.replace(/'/g, "\\'")}')`}">
-                        <span class="folder-icon">${folder.name === '..' ? '⬆️' : (folder.hasProjectJson ? '💼' : '📁')}</span>
-                        <span class="folder-name">${folder.name}</span>
-                        ${folder.hasProjectJson ? '<span class="project-badge">Project</span>' : ''}
-                    </div>
-                `).join('');
-                
-            } catch (err) {
-                folderList.innerHTML = `<div class="folder-error">⚠️ ${err.message}</div>`;
-            }
-        }
 
-        function navigateToFolder(path) {
-            loadFolderContents(path);
-        }
-
-        function navigateToParent() {
-            const parentPath = currentBrowserPath.split('/').slice(0, -1).join('/') || '/';
-            loadFolderContents(parentPath);
-        }
-
-        function selectCurrentFolder() {
-            document.getElementById('projectPathInput').value = currentBrowserPath;
-            if (folderBrowserCallback) {
-                folderBrowserCallback(currentBrowserPath);
-            }
-            closeFolderBrowser();
-        }
-
-        async function createNewFolder() {
-            const folderName = prompt('Enter new folder name:');
-            if (!folderName || !folderName.trim()) return;
-            
-            // Validate folder name
-            if (/[<>:"\/\\|?*]/.test(folderName)) {
-                showToast('Invalid folder name', 'error');
-                return;
-            }
-            
-            const newPath = currentBrowserPath + '/' + folderName.trim();
-            
-            try {
-                // Try to create by saving an empty project structure
-                const response = await fetch('/api/save-project', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        projectPath: newPath,
-                        storyPrompt: '',
-                        characters: [],
-                        characterArt: [],
-                        keyframes: [],
-                        scenes: [],
-                        settings: {}
-                    })
+                // Open the native folder picker
+                localDirectoryHandle = await window.showDirectoryPicker({
+                    mode: 'readwrite',
+                    startIn: 'documents'
                 });
+
+                // Update the path input with the folder name
+                const folderName = localDirectoryHandle.name;
+                document.getElementById('projectPathInput').value = folderName;
+                PROJECT_PATH = folderName;
                 
-                if (!response.ok) throw new Error('Failed to create folder');
-                
-                showToast(`Created folder: ${folderName}`, 'success');
-                loadFolderContents(currentBrowserPath);
+                showToast(`Selected folder: ${folderName}`, 'success');
                 
             } catch (err) {
-                showToast('Error creating folder: ' + err.message, 'error');
+                if (err.name !== 'AbortError') {
+                    showToast('Error selecting folder: ' + err.message, 'error');
+                }
             }
         }
 
@@ -1555,10 +1457,10 @@ Story context: ${storyContext}`;
             input.click();
         }
 
-        // Save Project - save everything to project folder on server
+        // Save Project - save to local folder using File System Access API
         document.getElementById('saveProjectBtn').addEventListener('click', async () => {
-            if (!PROJECT_PATH || PROJECT_PATH.trim() === '') {
-                alert('Please set a project folder in Settings first.');
+            if (!localDirectoryHandle) {
+                showToast('Please select a project folder first using the Browse button in Settings.', 'error');
                 openSettingsModal();
                 return;
             }
@@ -1572,6 +1474,7 @@ Story context: ${storyContext}`;
             
             projectData.projectPath = PROJECT_PATH;
             projectData.settings = PROJECT_SETTINGS;
+            projectData.savedAt = new Date().toISOString();
             
             const btn = document.getElementById('saveProjectBtn');
             const originalText = btn.innerHTML;
@@ -1579,21 +1482,60 @@ Story context: ${storyContext}`;
             btn.disabled = true;
             
             try {
-                const response = await fetch('/api/save-project', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(projectData)
-                });
-                
-                if (!response.ok) {
-                    const err = await response.text();
-                    throw new Error(err || 'Failed to save project');
+                // Create images directory
+                let imagesDir;
+                try {
+                    imagesDir = await localDirectoryHandle.getDirectoryHandle('images', { create: true });
+                } catch (e) {
+                    console.warn('Could not create images directory:', e);
                 }
+
+                // Create videos directory
+                try {
+                    await localDirectoryHandle.getDirectoryHandle('videos', { create: true });
+                } catch (e) {
+                    console.warn('Could not create videos directory:', e);
+                }
+
+                let imageCount = 0;
+
+                // Save character art images
+                if (imagesDir && projectData.characterArt) {
+                    for (let i = 0; i < projectData.characterArt.length; i++) {
+                        const art = projectData.characterArt[i];
+                        if (art.imageUrl && art.imageUrl.startsWith('data:')) {
+                            const filename = `character_${art.index || i + 1}.png`;
+                            await saveBase64ToFile(imagesDir, filename, art.imageUrl);
+                            projectData.characterArt[i].imageFile = filename;
+                            delete projectData.characterArt[i].imageUrl; // Don't save base64 in JSON
+                            imageCount++;
+                        }
+                    }
+                }
+
+                // Save scene images
+                if (imagesDir && projectData.scenes) {
+                    for (let i = 0; i < projectData.scenes.length; i++) {
+                        const scene = projectData.scenes[i];
+                        if (scene.imageUrl && scene.imageUrl.startsWith('data:')) {
+                            const filename = `scene_${i + 1}.png`;
+                            await saveBase64ToFile(imagesDir, filename, scene.imageUrl);
+                            projectData.scenes[i].imageFile = filename;
+                            delete projectData.scenes[i].imageUrl; // Don't save base64 in JSON
+                            imageCount++;
+                        }
+                    }
+                }
+
+                // Save project.json
+                const jsonFile = await localDirectoryHandle.getFileHandle('project.json', { create: true });
+                const writable = await jsonFile.createWritable();
+                await writable.write(JSON.stringify(projectData, null, 2));
+                await writable.close();
                 
-                const result = await response.json();
-                
-                showToast(`Project saved! ${result.imageCount} images saved to ${result.projectPath}`, 'success');
+                showToast(`Project saved! ${imageCount} images saved to ${PROJECT_PATH}`, 'success');
             } catch (err) {
+                console.error('Save error:', err);
                 showToast('Error saving project: ' + err.message, 'error');
             } finally {
                 btn.innerHTML = originalText;
@@ -1601,32 +1543,109 @@ Story context: ${storyContext}`;
             }
         });
 
-        // Load Project - load from project folder path
+        // Helper function to save base64 data to a file
+        async function saveBase64ToFile(directoryHandle, filename, dataUrl) {
+            try {
+                // Parse data URL
+                const [header, base64Data] = dataUrl.split(',');
+                const mimeMatch = header.match(/data:([^;]+)/);
+                const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+                
+                // Convert base64 to blob
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: mimeType });
+                
+                // Write to file
+                const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } catch (err) {
+                console.error(`Error saving ${filename}:`, err);
+            }
+        }
+
+        // Load Project - load from local folder using File System Access API
         document.getElementById('loadProjectBtn').addEventListener('click', async () => {
-            // Prompt for project folder path
-            const projectPath = prompt('Enter the project folder path:', PROJECT_PATH || '/home/exedev/video-maker/projects/my-project');
-            if (!projectPath) return;
-            
             const btn = document.getElementById('loadProjectBtn');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>📂</span> Loading...';
-            btn.disabled = true;
-
+            
             try {
-                const response = await fetch(`/api/load-project?path=${encodeURIComponent(projectPath)}`);
-                
-                if (!response.ok) {
-                    const err = await response.text();
-                    throw new Error(err || 'Failed to load project');
+                // Check if File System Access API is supported
+                if (!('showDirectoryPicker' in window)) {
+                    showToast('Your browser does not support folder selection. Please use Chrome or Edge.', 'error');
+                    return;
                 }
-                
-                const project = await response.json();
-                
-                // Update project path setting
-                PROJECT_PATH = projectPath;
-                PROJECT_SETTINGS.projectPath = projectPath;
+
+                // Open the native folder picker
+                localDirectoryHandle = await window.showDirectoryPicker({
+                    mode: 'readwrite',
+                    startIn: 'documents'
+                });
+
+                btn.innerHTML = '<span>📂</span> Loading...';
+                btn.disabled = true;
+
+                // Try to read project.json
+                let projectFile;
+                try {
+                    projectFile = await localDirectoryHandle.getFileHandle('project.json');
+                } catch (e) {
+                    throw new Error('No project.json found in this folder. Please select a valid project folder.');
+                }
+
+                const file = await projectFile.getFile();
+                const projectText = await file.text();
+                const project = JSON.parse(projectText);
+
+                // Update project path
+                PROJECT_PATH = localDirectoryHandle.name;
+                PROJECT_SETTINGS.projectPath = PROJECT_PATH;
                 localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
-                document.getElementById('projectPathInput').value = projectPath;
+                document.getElementById('projectPathInput').value = PROJECT_PATH;
+
+                // Load images from the images directory
+                let imagesDir;
+                try {
+                    imagesDir = await localDirectoryHandle.getDirectoryHandle('images');
+                } catch (e) {
+                    console.warn('No images directory found');
+                }
+
+                // Load character art images
+                if (imagesDir && project.characterArt) {
+                    for (let i = 0; i < project.characterArt.length; i++) {
+                        const art = project.characterArt[i];
+                        if (art.imageFile) {
+                            try {
+                                const imageUrl = await loadImageFromFile(imagesDir, art.imageFile);
+                                project.characterArt[i].imageUrl = imageUrl;
+                            } catch (e) {
+                                console.warn(`Could not load ${art.imageFile}:`, e);
+                            }
+                        }
+                    }
+                }
+
+                // Load scene images
+                if (imagesDir && project.scenes) {
+                    for (let i = 0; i < project.scenes.length; i++) {
+                        const scene = project.scenes[i];
+                        if (scene.imageFile) {
+                            try {
+                                const imageUrl = await loadImageFromFile(imagesDir, scene.imageFile);
+                                project.scenes[i].imageUrl = imageUrl;
+                            } catch (e) {
+                                console.warn(`Could not load ${scene.imageFile}:`, e);
+                            }
+                        }
+                    }
+                }
                 
                 // Load project data into UI
                 loadProjectData(project);
@@ -1641,14 +1660,28 @@ Story context: ${storyContext}`;
                     });
                 }
                 
-                showToast(`Project loaded from ${projectPath}`, 'success');
+                showToast(`Project loaded from ${PROJECT_PATH}`, 'success');
             } catch (err) {
-                showToast('Error loading project: ' + err.message, 'error');
+                if (err.name !== 'AbortError') {
+                    showToast('Error loading project: ' + err.message, 'error');
+                }
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
         });
+
+        // Helper function to load an image file as data URL
+        async function loadImageFromFile(directoryHandle, filename) {
+            const fileHandle = await directoryHandle.getFileHandle(filename);
+            const file = await fileHandle.getFile();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
 
         function gatherProjectData() {
             // Gather story prompt
