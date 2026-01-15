@@ -283,6 +283,7 @@
                             <img src="${r.imageUrl}" alt="Character ${r.index}">
                             <div class="art-overlay">
                                 <button class="btn-icon" onclick="regenerateCharacter(${r.index})" title="Regenerate">🔄</button>
+                                <button class="btn-icon" onclick="replaceWithLocal(${r.index})" title="Upload Local Image">📁</button>
                                 <button class="btn-icon" onclick="downloadImage('${r.imageUrl}')" title="Download">⬇️</button>
                             </div>
                         </div>
@@ -325,6 +326,43 @@
         function downloadImage(url) {
             window.open(url, '_blank');
         }
+
+        // Hidden file input for uploading local images
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+
+        let currentReplaceIndex = null;
+
+        function replaceWithLocal(index) {
+            currentReplaceIndex = index;
+            fileInput.click();
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file || currentReplaceIndex === null) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const dataUrl = event.target.result;
+                const card = document.querySelector(`.art-card[data-character="${currentReplaceIndex}"]`);
+                if (card) {
+                    const img = card.querySelector('img');
+                    img.src = dataUrl;
+                    // Update provider label to show it's a local file
+                    const providerLabel = card.querySelector('.art-provider');
+                    if (providerLabel) {
+                        providerLabel.textContent = 'Local Upload';
+                    }
+                }
+                currentReplaceIndex = null;
+                fileInput.value = ''; // Reset for next use
+            };
+            reader.readAsDataURL(file);
+        });
 
         // Form submission
         document.getElementById('submitBtn').addEventListener('click', async () => {
