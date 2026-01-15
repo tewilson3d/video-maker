@@ -1419,46 +1419,6 @@ footer {
     gap: 0.75rem;
 }
 
-.project-path-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.75rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-}
-
-.project-path-bar label {
-    font-size: 1rem;
-}
-
-.project-path-bar input {
-    width: 200px;
-    padding: 0.35rem 0.5rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-size: 0.8rem;
-    font-family: monospace;
-}
-
-.project-path-bar input:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-
-.project-path-bar .btn-small {
-    padding: 0.35rem 0.5rem;
-    background: var(--accent);
-    border: none;
-    border-radius: 4px;
-    color: white;
-    cursor: pointer;
-    font-size: 0.8rem;
-}
-
 .project-buttons {
     display: flex;
     gap: 0.5rem;
@@ -1480,6 +1440,107 @@ footer {
 
 .btn-project:hover {
     background: var(--bg-secondary);
+    border-color: var(--accent);
+}
+
+/* Settings Modal */
+.settings-modal {
+    max-width: 500px;
+}
+
+.settings-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.settings-section h4 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.settings-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.folder-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.folder-input-group input {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: monospace;
+}
+
+.folder-input-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.btn-browse {
+    padding: 0.6rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.btn-browse:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.settings-row:last-child {
+    margin-bottom: 0;
+}
+
+.settings-row label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.settings-row select {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    min-width: 150px;
+    cursor: pointer;
+}
+
+.settings-row select:focus {
+    outline: none;
     border-color: var(--accent);
 }
 

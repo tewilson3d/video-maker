@@ -16,17 +16,15 @@
                     <p class="subtitle">Transform your ideas into visual stories</p>
                 </div>
                 <div class="project-controls">
-                    <div class="project-path-bar">
-                        <label>📁</label>
-                        <input type="text" id="projectPathInput" placeholder="/path/to/projects" value="">
-                        <button type="button" class="btn-small" onclick="saveProjectPath()" title="Set path">✔</button>
-                    </div>
                     <div class="project-buttons">
                         <button type="button" class="btn-project" id="loadProjectBtn">
                             <span>📂</span> Load
                         </button>
                         <button type="button" class="btn-project" id="saveProjectBtn">
                             <span>💾</span> Save
+                        </button>
+                        <button type="button" class="btn-project" id="settingsBtn">
+                            <span>⚙️</span> Settings
                         </button>
                     </div>
                 </div>
@@ -294,6 +292,87 @@
         
         <!-- Hidden file inputs -->
         <input type="file" id="loadProjectInput" accept=".json" style="display: none;">
+        <input type="file" id="folderBrowseInput" webkitdirectory directory style="display: none;">
+
+        <!-- Project Settings Modal -->
+        <div id="settingsModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content settings-modal">
+                <div class="modal-header">
+                    <h3>⚙️ Project Settings</h3>
+                    <button class="modal-close" onclick="closeSettingsModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h4>📁 Project Folder</h4>
+                        <p class="settings-desc">Where images and project files are saved on the server</p>
+                        <div class="folder-input-group">
+                            <input type="text" id="projectPathInput" placeholder="/path/to/projects" readonly>
+                            <button type="button" class="btn-browse" onclick="browseFolder()">📂 Browse</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h4>🖼️ Image Settings</h4>
+                        <div class="settings-row">
+                            <label>Aspect Ratio</label>
+                            <select id="imageAspectRatio">
+                                <option value="1:1">1:1 (Square)</option>
+                                <option value="16:9" selected>16:9 (Widescreen)</option>
+                                <option value="9:16">9:16 (Portrait/Vertical)</option>
+                                <option value="4:3">4:3 (Standard)</option>
+                                <option value="3:2">3:2 (Photo)</option>
+                                <option value="21:9">21:9 (Cinematic)</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <label>Resolution</label>
+                            <select id="imageResolution">
+                                <option value="512">512px</option>
+                                <option value="768">768px</option>
+                                <option value="1024" selected>1024px</option>
+                                <option value="1536">1536px</option>
+                                <option value="2048">2048px</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h4>🎬 Video Settings</h4>
+                        <div class="settings-row">
+                            <label>Video Aspect Ratio</label>
+                            <select id="videoAspectRatio">
+                                <option value="16:9" selected>16:9 (Widescreen)</option>
+                                <option value="9:16">9:16 (Vertical/TikTok)</option>
+                                <option value="1:1">1:1 (Square)</option>
+                                <option value="4:3">4:3 (Standard)</option>
+                                <option value="21:9">21:9 (Cinematic)</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <label>Clip Duration</label>
+                            <select id="clipDuration">
+                                <option value="3">3 seconds</option>
+                                <option value="5" selected>5 seconds</option>
+                                <option value="8">8 seconds</option>
+                                <option value="10">10 seconds</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <label>Frame Rate</label>
+                            <select id="frameRate">
+                                <option value="24">24 fps (Film)</option>
+                                <option value="30" selected>30 fps (Standard)</option>
+                                <option value="60">60 fps (Smooth)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeSettingsModal()">Cancel</button>
+                    <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+                </div>
+            </div>
+        </div>
 
         <footer>
             <p>Powered by AI • Create amazing video stories in minutes</p>
@@ -310,23 +389,82 @@
         let accessToken = null;
         let currentAuthTab = 'apikey';
 
-        // Global project path
-        let PROJECT_PATH = localStorage.getItem('projectPath') || '/home/exedev/video-maker/projects';
+        // Project Settings
+        let PROJECT_SETTINGS = JSON.parse(localStorage.getItem('projectSettings') || '{}');
+        PROJECT_SETTINGS = {
+            projectPath: PROJECT_SETTINGS.projectPath || '/home/exedev/video-maker/projects',
+            imageAspectRatio: PROJECT_SETTINGS.imageAspectRatio || '16:9',
+            imageResolution: PROJECT_SETTINGS.imageResolution || '1024',
+            videoAspectRatio: PROJECT_SETTINGS.videoAspectRatio || '16:9',
+            clipDuration: PROJECT_SETTINGS.clipDuration || '5',
+            frameRate: PROJECT_SETTINGS.frameRate || '30'
+        };
         
-        // Initialize project path input
+        // For backward compatibility
+        let PROJECT_PATH = PROJECT_SETTINGS.projectPath;
+        
+        // Initialize settings
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('projectPathInput').value = PROJECT_PATH;
+            document.getElementById('projectPathInput').value = PROJECT_SETTINGS.projectPath;
         });
 
-        function saveProjectPath() {
-            const path = document.getElementById('projectPathInput').value.trim();
-            if (!path) {
-                alert('Please enter a valid path');
-                return;
+        // Settings Modal
+        document.getElementById('settingsBtn')?.addEventListener('click', () => {
+            openSettingsModal();
+        });
+
+        function openSettingsModal() {
+            document.getElementById('projectPathInput').value = PROJECT_SETTINGS.projectPath;
+            document.getElementById('imageAspectRatio').value = PROJECT_SETTINGS.imageAspectRatio;
+            document.getElementById('imageResolution').value = PROJECT_SETTINGS.imageResolution;
+            document.getElementById('videoAspectRatio').value = PROJECT_SETTINGS.videoAspectRatio;
+            document.getElementById('clipDuration').value = PROJECT_SETTINGS.clipDuration;
+            document.getElementById('frameRate').value = PROJECT_SETTINGS.frameRate;
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function browseFolder() {
+            document.getElementById('folderBrowseInput').click();
+        }
+
+        document.getElementById('folderBrowseInput')?.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                // Get the path from the first file's webkitRelativePath
+                const path = e.target.files[0].webkitRelativePath.split('/')[0];
+                // For security reasons, browsers don't give full path
+                // We'll just show the folder name and let user manually set full path
+                const currentPath = document.getElementById('projectPathInput').value;
+                const newPath = prompt('Enter the full server path for the project folder:', currentPath);
+                if (newPath) {
+                    document.getElementById('projectPathInput').value = newPath;
+                }
             }
-            PROJECT_PATH = path;
-            localStorage.setItem('projectPath', path);
-            alert('Project path saved: ' + path);
+            e.target.value = '';
+        });
+
+        function saveSettings() {
+            PROJECT_SETTINGS = {
+                projectPath: document.getElementById('projectPathInput').value.trim(),
+                imageAspectRatio: document.getElementById('imageAspectRatio').value,
+                imageResolution: document.getElementById('imageResolution').value,
+                videoAspectRatio: document.getElementById('videoAspectRatio').value,
+                clipDuration: document.getElementById('clipDuration').value,
+                frameRate: document.getElementById('frameRate').value
+            };
+            
+            PROJECT_PATH = PROJECT_SETTINGS.projectPath;
+            localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
+            closeSettingsModal();
+            alert('Settings saved!');
+        }
+
+        function saveProjectPath() {
+            // Legacy function, now handled by saveSettings
+            saveSettings();
         }
 
         // Tab switching for setup modal
