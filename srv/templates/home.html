@@ -1462,10 +1462,31 @@ Story context: ${storyContext}`;
 
         // Save Project - save to local folder using File System Access API
         document.getElementById('saveProjectBtn').addEventListener('click', async () => {
+            // If no folder selected, prompt user to select one
             if (!localDirectoryHandle) {
-                showToast('Please select a project folder first using the Browse button in Settings.', 'error');
-                openSettingsModal();
-                return;
+                try {
+                    if (!('showDirectoryPicker' in window)) {
+                        showToast('Your browser does not support folder selection. Please use Chrome or Edge.', 'error');
+                        return;
+                    }
+                    
+                    localDirectoryHandle = await window.showDirectoryPicker({
+                        mode: 'readwrite',
+                        startIn: 'documents'
+                    });
+                    
+                    PROJECT_PATH = localDirectoryHandle.name;
+                    PROJECT_SETTINGS.projectPath = PROJECT_PATH;
+                    document.getElementById('projectPathInput').value = PROJECT_PATH;
+                    
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        // User cancelled
+                        return;
+                    }
+                    showToast('Error selecting folder: ' + err.message, 'error');
+                    return;
+                }
             }
 
             const projectData = gatherProjectData();
