@@ -313,8 +313,11 @@
                 <div class="storyboard-header-bar">
                     <div class="storyboard-info-compact">
                         <span id="storyboardStoryPreview"></span>
+                        <span id="selectionInfo" class="selection-info" style="display: none;"></span>
                     </div>
                     <div class="storyboard-actions">
+                        <button class="btn-secondary btn-sm" onclick="selectAllScenes()" title="Select All">☑️ All</button>
+                        <button class="btn-secondary btn-sm" onclick="clearSelection()" title="Clear Selection">✖️ Clear</button>
                         <button class="btn-secondary" onclick="regenerateStoryboard()">🔄 Regenerate</button>
                         <button class="btn-secondary" onclick="exportStoryboard()">📤 Export</button>
                     </div>
@@ -465,6 +468,7 @@
 
         function updateStoryboardTab(storyboardData) {
             currentStoryboard = storyboardData;
+            if (typeof selectedScenes !== 'undefined') selectedScenes.clear();
             
             // Hide empty state, show content
             document.getElementById('storyboardEmpty').style.display = 'none';
@@ -477,15 +481,15 @@
             // Render storyboard grid
             const grid = document.getElementById('storyboardGrid');
             grid.innerHTML = storyboardData.scenes.map((scene, index) => `
-                <div class="storyboard-card" data-scene-index="${index}">
+                <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)">
                     <div class="card-header">
                         <span class="scene-number">Scene ${index + 1}</span>
                         <div class="card-actions">
-                            <button class="btn-icon-sm" onclick="editScene(${index})" title="Edit">✏️</button>
-                            <button class="btn-icon-sm" onclick="regenerateScene(${index})" title="Regenerate">🔄</button>
+                            <button class="btn-icon-sm" onclick="event.stopPropagation(); editScene(${index})" title="Edit">✏️</button>
+                            <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
                         </div>
                     </div>
-                    <div class="card-image" onclick="openSceneDetail(${index})">
+                    <div class="card-image">
                         <img src="${scene.imageUrl || 'https://placehold.co/512x288/1a1a2e/ffffff?text=Scene+' + (index + 1)}" alt="Scene ${index + 1}">
                     </div>
                     <div class="card-content">
@@ -497,7 +501,7 @@
             // Update timeline
             const timeline = document.getElementById('timelineTrack');
             timeline.innerHTML = storyboardData.scenes.map((scene, index) => `
-                <div class="timeline-item" style="background-image: url('${scene.imageUrl || ''}')" onclick="scrollToScene(${index})"></div>
+                <div class="timeline-item" data-scene-index="${index}" style="background-image: url('${scene.imageUrl || ''}')" onclick="toggleSceneSelection(${index}, event)"></div>
             `).join('');
             
             // Switch to storyboard tab
@@ -1749,8 +1753,12 @@ Story context: ${storyContext}`;
         });
 
         // Update storyboard with loading state
+        // Track selected scenes
+        let selectedScenes = new Set();
+
         function updateStoryboardTabWithLoading(storyboardData) {
             currentStoryboard = storyboardData;
+            selectedScenes.clear();
             
             document.getElementById('storyboardEmpty').style.display = 'none';
             document.getElementById('storyboardContent').style.display = 'block';
@@ -1761,11 +1769,11 @@ Story context: ${storyContext}`;
             // Render storyboard grid with loading state
             const grid = document.getElementById('storyboardGrid');
             grid.innerHTML = storyboardData.scenes.map((scene, index) => `
-                <div class="storyboard-card" data-scene-index="${index}">
+                <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)">
                     <div class="card-header">
                         <span class="scene-number">Scene ${index + 1}</span>
                         <div class="card-actions">
-                            <button class="btn-icon-sm" onclick="regenerateSceneImage(${index})" title="Regenerate">🔄</button>
+                            <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
                         </div>
                     </div>
                     <div class="card-image loading-state">
@@ -1783,8 +1791,75 @@ Story context: ${storyContext}`;
             // Update timeline with placeholders
             const timeline = document.getElementById('timelineTrack');
             timeline.innerHTML = storyboardData.scenes.map((scene, index) => `
-                <div class="timeline-item timeline-loading" data-scene-index="${index}"></div>
+                <div class="timeline-item timeline-loading" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)"></div>
             `).join('');
+        }
+
+        // Toggle scene selection
+        function toggleSceneSelection(index, event) {
+            // Allow multi-select with Ctrl/Cmd key
+            if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
+                // Single click without modifier - clear other selections
+                selectedScenes.clear();
+            }
+            
+            if (event.shiftKey && selectedScenes.size > 0) {
+                // Shift+click - select range
+                const lastSelected = Math.max(...selectedScenes);
+                const start = Math.min(lastSelected, index);
+                const end = Math.max(lastSelected, index);
+                for (let i = start; i <= end; i++) {
+                    selectedScenes.add(i);
+                }
+            } else {
+                // Toggle single selection
+                if (selectedScenes.has(index)) {
+                    selectedScenes.delete(index);
+                } else {
+                    selectedScenes.add(index);
+                }
+            }
+            
+            updateSelectionUI();
+        }
+
+        // Update selection visual state
+        function updateSelectionUI() {
+            document.querySelectorAll('.storyboard-card').forEach(card => {
+                const index = parseInt(card.dataset.sceneIndex);
+                card.classList.toggle('selected', selectedScenes.has(index));
+            });
+            
+            document.querySelectorAll('.timeline-item').forEach(item => {
+                const index = parseInt(item.dataset.sceneIndex);
+                item.classList.toggle('selected', selectedScenes.has(index));
+            });
+            
+            // Update selection count display if exists
+            const selectionInfo = document.getElementById('selectionInfo');
+            if (selectionInfo) {
+                if (selectedScenes.size > 0) {
+                    selectionInfo.textContent = `${selectedScenes.size} scene${selectedScenes.size > 1 ? 's' : ''} selected`;
+                    selectionInfo.style.display = 'inline';
+                } else {
+                    selectionInfo.style.display = 'none';
+                }
+            }
+        }
+
+        // Select all scenes
+        function selectAllScenes() {
+            if (!currentStoryboard) return;
+            for (let i = 0; i < currentStoryboard.scenes.length; i++) {
+                selectedScenes.add(i);
+            }
+            updateSelectionUI();
+        }
+
+        // Clear all selections
+        function clearSelection() {
+            selectedScenes.clear();
+            updateSelectionUI();
         }
 
         // Update scene status during generation
