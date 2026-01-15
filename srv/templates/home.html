@@ -1472,6 +1472,33 @@ Story context: ${storyContext}`;
                 projectData.scenes = currentStoryboard.scenes;
             }
             
+            // Also gather any scene images from the DOM as a fallback
+            const sceneCards = document.querySelectorAll('.storyboard-card');
+            if (sceneCards.length > 0 && (!projectData.scenes || projectData.scenes.length === 0)) {
+                projectData.scenes = [];
+                sceneCards.forEach((card, index) => {
+                    const img = card.querySelector('.card-image img');
+                    const narration = card.querySelector('.scene-narration')?.textContent || '';
+                    projectData.scenes.push({
+                        id: `scene_${index + 1}`,
+                        narration: narration,
+                        imageUrl: img?.src || null
+                    });
+                });
+            }
+            
+            // Sync scene images from DOM to projectData (in case they were updated)
+            if (projectData.scenes) {
+                sceneCards.forEach((card, index) => {
+                    if (projectData.scenes[index]) {
+                        const img = card.querySelector('.card-image img');
+                        if (img && img.src && img.src.startsWith('data:')) {
+                            projectData.scenes[index].imageUrl = img.src;
+                        }
+                    }
+                });
+            }
+            
             projectData.projectPath = PROJECT_PATH;
             projectData.settings = PROJECT_SETTINGS;
             projectData.savedAt = new Date().toISOString();
@@ -1503,12 +1530,27 @@ Story context: ${storyContext}`;
                 if (imagesDir && projectData.characterArt) {
                     for (let i = 0; i < projectData.characterArt.length; i++) {
                         const art = projectData.characterArt[i];
-                        if (art.imageUrl && art.imageUrl.startsWith('data:')) {
-                            const filename = `character_${art.index || i + 1}.png`;
-                            await saveBase64ToFile(imagesDir, filename, art.imageUrl);
-                            projectData.characterArt[i].imageFile = filename;
-                            delete projectData.characterArt[i].imageUrl; // Don't save base64 in JSON
-                            imageCount++;
+                        if (art.imageUrl) {
+                            if (art.imageUrl.startsWith('data:')) {
+                                // Save base64 image
+                                const filename = `character_${art.index || i + 1}.png`;
+                                await saveBase64ToFile(imagesDir, filename, art.imageUrl);
+                                projectData.characterArt[i].imageFile = filename;
+                                delete projectData.characterArt[i].imageUrl;
+                                imageCount++;
+                            } else if (art.imageUrl.startsWith('http')) {
+                                // Try to fetch and save external URL
+                                try {
+                                    const filename = `character_${art.index || i + 1}.png`;
+                                    await saveImageFromUrl(imagesDir, filename, art.imageUrl);
+                                    projectData.characterArt[i].imageFile = filename;
+                                    delete projectData.characterArt[i].imageUrl;
+                                    imageCount++;
+                                } catch (e) {
+                                    console.warn(`Could not save external image: ${art.imageUrl}`, e);
+                                    // Keep the URL in the JSON as fallback
+                                }
+                            }
                         }
                     }
                 }
@@ -1517,12 +1559,27 @@ Story context: ${storyContext}`;
                 if (imagesDir && projectData.scenes) {
                     for (let i = 0; i < projectData.scenes.length; i++) {
                         const scene = projectData.scenes[i];
-                        if (scene.imageUrl && scene.imageUrl.startsWith('data:')) {
-                            const filename = `scene_${i + 1}.png`;
-                            await saveBase64ToFile(imagesDir, filename, scene.imageUrl);
-                            projectData.scenes[i].imageFile = filename;
-                            delete projectData.scenes[i].imageUrl; // Don't save base64 in JSON
-                            imageCount++;
+                        if (scene.imageUrl) {
+                            if (scene.imageUrl.startsWith('data:')) {
+                                // Save base64 image
+                                const filename = `scene_${i + 1}.png`;
+                                await saveBase64ToFile(imagesDir, filename, scene.imageUrl);
+                                projectData.scenes[i].imageFile = filename;
+                                delete projectData.scenes[i].imageUrl;
+                                imageCount++;
+                            } else if (scene.imageUrl.startsWith('http')) {
+                                // Try to fetch and save external URL
+                                try {
+                                    const filename = `scene_${i + 1}.png`;
+                                    await saveImageFromUrl(imagesDir, filename, scene.imageUrl);
+                                    projectData.scenes[i].imageFile = filename;
+                                    delete projectData.scenes[i].imageUrl;
+                                    imageCount++;
+                                } catch (e) {
+                                    console.warn(`Could not save external image: ${scene.imageUrl}`, e);
+                                    // Keep the URL in the JSON as fallback
+                                }
+                            }
                         }
                     }
                 }
@@ -1543,6 +1600,7 @@ Story context: ${storyContext}`;
             }
         });
 
+        // Helper function to save base64 data to a file
         // Helper function to save base64 data to a file
         async function saveBase64ToFile(directoryHandle, filename, dataUrl) {
             try {
@@ -1567,6 +1625,32 @@ Story context: ${storyContext}`;
                 await writable.close();
             } catch (err) {
                 console.error(`Error saving ${filename}:`, err);
+                throw err;
+            }
+        }
+
+        // Helper function to fetch an image URL and save it to a file
+        async function saveImageFromUrl(directoryHandle, filename, url) {
+            try {
+                // Skip placeholder URLs
+                if (url.includes('placehold.co') || url.includes('placeholder')) {
+                    console.log(`Skipping placeholder image: ${url}`);
+                    return;
+                }
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+                
+                const blob = await response.blob();
+                
+                // Write to file
+                const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } catch (err) {
+                console.error(`Error saving image from URL ${url}:`, err);
+                throw err;
             }
         }
 
