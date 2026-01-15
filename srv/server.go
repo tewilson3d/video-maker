@@ -527,6 +527,97 @@ func detectMimeType(path string) string {
 	}
 }
 
+// HandleBrowseFolders returns a list of folders for the file browser
+func (s *Server) HandleBrowseFolders(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		path = "/home/exedev/video-maker/projects"
+	}
+
+	// Clean and validate path
+	path = filepath.Clean(path)
+	
+	// Check if path exists
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Return parent directory if path doesn't exist
+			path = filepath.Dir(path)
+			info, err = os.Stat(path)
+			if err != nil {
+				http.Error(w, "Path not found", http.StatusNotFound)
+				return
+			}
+		} else {
+			http.Error(w, "Error accessing path: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// If path is a file, use its directory
+	if !info.IsDir() {
+		path = filepath.Dir(path)
+	}
+
+	// Read directory contents
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		http.Error(w, "Error reading directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type FolderEntry struct {
+		Name    string `json:"name"`
+		Path    string `json:"path"`
+		IsDir   bool   `json:"isDir"`
+		HasProjectJSON bool `json:"hasProjectJson"`
+	}
+
+	folders := []FolderEntry{}
+	
+	// Add parent directory option (unless at root)
+	if path != "/" {
+		parentPath := filepath.Dir(path)
+		folders = append(folders, FolderEntry{
+			Name:  "..",
+			Path:  parentPath,
+			IsDir: true,
+		})
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue // Only show directories
+		}
+		
+		// Skip hidden directories
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
+		entryPath := filepath.Join(path, entry.Name())
+		
+		// Check if this folder has a project.json
+		hasProjectJSON := false
+		if _, err := os.Stat(filepath.Join(entryPath, "project.json")); err == nil {
+			hasProjectJSON = true
+		}
+
+		folders = append(folders, FolderEntry{
+			Name:           entry.Name(),
+			Path:           entryPath,
+			IsDir:          true,
+			HasProjectJSON: hasProjectJSON,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"currentPath": path,
+		"folders":     folders,
+	})
+}
+
 func saveBase64Image(dataURL, filepath string) error {
 	// Parse data URL: data:image/png;base64,xxxxx
 	parts := strings.SplitN(dataURL, ",", 2)
@@ -677,8 +768,8 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
+	mux.HandleFunc("GET /api/browse-folders", s.HandleBrowseFolders)
 
-	
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
 	

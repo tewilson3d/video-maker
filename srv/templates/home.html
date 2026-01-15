@@ -366,22 +366,14 @@
                 <div class="modal-body">
                     <div class="settings-section">
                         <h4>📁 Project Folder</h4>
-                        <p class="settings-desc">Full path to your project folder on the server. This folder will contain project.json, images/, and videos/</p>
+                        <p class="settings-desc">Select or enter the project folder path</p>
                         <div class="folder-input-group">
                             <input type="text" id="projectPathInput" placeholder="/home/exedev/video-maker/projects/my-project">
+                            <button type="button" class="btn-browse" onclick="openFolderBrowser()">📂 Browse</button>
                         </div>
-                        <div class="folder-structure-preview">
-                            <code id="folderStructurePreview">
-📁 project-folder/
-├── project.json
-├── images/
-│   ├── character_1.png
-│   ├── scene_1.png
-│   └── ...
-└── videos/
-    ├── clip_1.mp4
-    └── ...
-                            </code>
+                        <div class="folder-structure-info">
+                            <span class="info-label">Project structure:</span>
+                            <span class="info-text">project.json + images/ + videos/</span>
                         </div>
                     </div>
 
@@ -444,6 +436,32 @@
                 <div class="modal-footer">
                     <button class="btn-secondary" onclick="closeSettingsModal()">Cancel</button>
                     <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Folder Browser Modal -->
+        <div id="folderBrowserModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content folder-browser-modal">
+                <div class="modal-header">
+                    <h3>📂 Browse Folders</h3>
+                    <button class="modal-close" onclick="closeFolderBrowser()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="folder-browser-path">
+                        <label>Current Path:</label>
+                        <input type="text" id="browserCurrentPath" readonly>
+                    </div>
+                    <div class="folder-browser-actions">
+                        <button class="btn-sm" onclick="createNewFolder()">➕ New Folder</button>
+                    </div>
+                    <div class="folder-browser-list" id="folderList">
+                        <div class="folder-loading">Loading...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeFolderBrowser()">Cancel</button>
+                    <button class="btn-primary" onclick="selectCurrentFolder()">Select This Folder</button>
                 </div>
             </div>
         </div>
@@ -639,12 +657,115 @@
             PROJECT_PATH = PROJECT_SETTINGS.projectPath;
             localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
             closeSettingsModal();
-            alert('Settings saved!');
+            showToast('Settings saved!', 'success');
         }
 
         function saveProjectPath() {
             // Legacy function, now handled by saveSettings
             saveSettings();
+        }
+
+        // Folder Browser
+        let currentBrowserPath = '/home/exedev/video-maker/projects';
+        let folderBrowserCallback = null;
+
+        function openFolderBrowser(callback) {
+            folderBrowserCallback = callback || null;
+            currentBrowserPath = PROJECT_PATH || '/home/exedev/video-maker/projects';
+            document.getElementById('folderBrowserModal').style.display = 'flex';
+            loadFolderContents(currentBrowserPath);
+        }
+
+        function closeFolderBrowser() {
+            document.getElementById('folderBrowserModal').style.display = 'none';
+            folderBrowserCallback = null;
+        }
+
+        async function loadFolderContents(path) {
+            const folderList = document.getElementById('folderList');
+            folderList.innerHTML = '<div class="folder-loading">Loading...</div>';
+            document.getElementById('browserCurrentPath').value = path;
+            
+            try {
+                const response = await fetch(`/api/browse-folders?path=${encodeURIComponent(path)}`);
+                if (!response.ok) throw new Error('Failed to load folders');
+                
+                const data = await response.json();
+                currentBrowserPath = data.currentPath;
+                document.getElementById('browserCurrentPath').value = data.currentPath;
+                
+                if (data.folders.length === 0) {
+                    folderList.innerHTML = '<div class="folder-empty">No folders found</div>';
+                    return;
+                }
+                
+                folderList.innerHTML = data.folders.map(folder => `
+                    <div class="folder-item ${folder.hasProjectJson ? 'has-project' : ''}" 
+                         onclick="${folder.name === '..' ? 'navigateToParent()' : `navigateToFolder('${folder.path.replace(/'/g, "\\'")}')`}">
+                        <span class="folder-icon">${folder.name === '..' ? '⬆️' : (folder.hasProjectJson ? '💼' : '📁')}</span>
+                        <span class="folder-name">${folder.name}</span>
+                        ${folder.hasProjectJson ? '<span class="project-badge">Project</span>' : ''}
+                    </div>
+                `).join('');
+                
+            } catch (err) {
+                folderList.innerHTML = `<div class="folder-error">⚠️ ${err.message}</div>`;
+            }
+        }
+
+        function navigateToFolder(path) {
+            loadFolderContents(path);
+        }
+
+        function navigateToParent() {
+            const parentPath = currentBrowserPath.split('/').slice(0, -1).join('/') || '/';
+            loadFolderContents(parentPath);
+        }
+
+        function selectCurrentFolder() {
+            document.getElementById('projectPathInput').value = currentBrowserPath;
+            if (folderBrowserCallback) {
+                folderBrowserCallback(currentBrowserPath);
+            }
+            closeFolderBrowser();
+        }
+
+        async function createNewFolder() {
+            const folderName = prompt('Enter new folder name:');
+            if (!folderName || !folderName.trim()) return;
+            
+            // Validate folder name
+            if (/[<>:"\/\\|?*]/.test(folderName)) {
+                showToast('Invalid folder name', 'error');
+                return;
+            }
+            
+            const newPath = currentBrowserPath + '/' + folderName.trim();
+            
+            try {
+                // Try to create by saving an empty project structure
+                const response = await fetch('/api/save-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectPath: newPath,
+                        storyPrompt: '',
+                        characters: [],
+                        characterArt: [],
+                        keyframes: [],
+                        scenes: [],
+                        settings: {}
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to create folder');
+                
+                showToast(`Created folder: ${folderName}`, 'success');
+                loadFolderContents(currentBrowserPath);
+                
+            } catch (err) {
+                showToast('Error creating folder: ' + err.message, 'error');
+            }
         }
 
         // Tab switching for setup modal
