@@ -364,19 +364,51 @@ footer {
 }
 
 .scene-narration {
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .scene-narration p {
-    font-size: 0.95rem;
-    margin-top: 0.25rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.scene-prompt-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--border);
+    margin-top: 0.5rem;
+}
+
+.scene-prompt-toggle:hover {
+    color: var(--accent);
+}
+
+.toggle-icon {
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+
+.scene-prompt {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 200px;
+    opacity: 1;
+}
+
+.scene-prompt.collapsed {
+    max-height: 0;
+    opacity: 0;
 }
 
 .prompt-text {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
     font-style: italic;
-    margin-top: 0.25rem;
+    margin-top: 0.5rem;
+    line-height: 1.5;
 }
 
 .scene-actions {
@@ -816,6 +848,159 @@ footer {
 .character-list::-webkit-scrollbar-thumb:hover,
 .keyframe-list::-webkit-scrollbar-thumb:hover {
     background: var(--accent);
+}
+
+/* Keyframe Modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    max-width: 700px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.keyframe-editor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.keyframe-slot {
+    flex: 1;
+    max-width: 250px;
+}
+
+.keyframe-slot label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.keyframe-image {
+    aspect-ratio: 16/9;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.keyframe-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.keyframe-image.empty {
+    border-style: dashed;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.keyframe-image.empty:hover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.upload-icon {
+    font-size: 2rem;
+}
+
+.keyframe-arrow {
+    font-size: 2rem;
+    color: var(--text-secondary);
+}
+
+.keyframe-info {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.modal-footer .btn-primary {
+    width: auto;
+    padding: 0.75rem 1.5rem;
+}
+
+/* Scene card with keyframes indicator */
+.scene-card.has-keyframes .scene-number::after {
+    content: ' 🎬';
+}
+
+.scene-image {
+    cursor: pointer;
 }
 
 /* Responsive */

@@ -36,22 +36,24 @@
 
         <main class="storyboard-grid">
             {{range $index, $scene := .Scenes}}
-            <div class="scene-card" data-scene-id="{{$scene.ID}}">
+            <div class="scene-card" data-scene-id="{{$scene.ID}}" data-scene-index="{{$index}}">
                 <div class="scene-number">Scene {{$index | plus1}}</div>
-                <div class="scene-image">
+                <div class="scene-image" onclick="openKeyframeModal({{$index}}, '{{$scene.ImageURL}}')">
                     <img src="{{$scene.ImageURL}}" alt="Scene {{$index | plus1}}">
                     <div class="image-overlay">
-                        <button class="btn-icon" title="Regenerate Image">🔄</button>
-                        <button class="btn-icon" title="Edit Prompt">✏️</button>
+                        <button class="btn-icon" onclick="event.stopPropagation(); regenerateScene({{$index}})" title="Regenerate Image">🔄</button>
+                        <button class="btn-icon" onclick="event.stopPropagation(); openKeyframeModal({{$index}}, '{{$scene.ImageURL}}')" title="Edit Keyframes">🎬</button>
                     </div>
                 </div>
                 <div class="scene-content">
                     <div class="scene-narration">
-                        <label>Narration</label>
                         <p>{{$scene.Narration}}</p>
                     </div>
-                    <div class="scene-prompt">
+                    <div class="scene-prompt-toggle" onclick="togglePrompt(this)">
+                        <span class="toggle-icon">▶</span>
                         <label>Image Prompt</label>
+                    </div>
+                    <div class="scene-prompt collapsed">
                         <p class="prompt-text">{{$scene.ImagePrompt}}</p>
                     </div>
                 </div>
@@ -71,6 +73,44 @@
             </div>
         </main>
 
+        <!-- Keyframe Modal -->
+        <div id="keyframeModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🎬 Keyframe Editor - <span id="modalSceneTitle">Scene 1</span></h3>
+                    <button class="modal-close" onclick="closeKeyframeModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="keyframe-editor">
+                        <div class="keyframe-slot">
+                            <label>Start Frame</label>
+                            <div class="keyframe-image" id="startFrameContainer">
+                                <img id="startFrameImg" src="" alt="Start Frame">
+                            </div>
+                        </div>
+                        <div class="keyframe-arrow">➡️</div>
+                        <div class="keyframe-slot">
+                            <label>End Frame</label>
+                            <div class="keyframe-image empty" id="endFrameContainer" onclick="uploadEndFrame()">
+                                <img id="endFrameImg" src="" alt="End Frame" style="display: none;">
+                                <div class="upload-placeholder" id="endFramePlaceholder">
+                                    <span class="upload-icon">📁</span>
+                                    <span>Click to upload</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="keyframe-info">
+                        <p>The start frame is the generated scene image. Upload an end frame to create a transition or animation between the two keyframes.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeKeyframeModal()">Cancel</button>
+                    <button class="btn-primary" onclick="saveKeyframes()">Save Keyframes</button>
+                </div>
+            </div>
+        </div>
+
         <footer class="storyboard-footer">
             <div class="timeline">
                 <span class="timeline-label">Timeline Preview</span>
@@ -84,6 +124,99 @@
     </div>
 
     <script>
+        // Toggle prompt visibility
+        function togglePrompt(element) {
+            const prompt = element.nextElementSibling;
+            const icon = element.querySelector('.toggle-icon');
+            prompt.classList.toggle('collapsed');
+            icon.textContent = prompt.classList.contains('collapsed') ? '▶' : '▼';
+        }
+
+        // Keyframe modal
+        let currentSceneIndex = null;
+        const keyframeData = {}; // Store end frames per scene
+
+        function openKeyframeModal(sceneIndex, startImageUrl) {
+            currentSceneIndex = sceneIndex;
+            document.getElementById('modalSceneTitle').textContent = `Scene ${sceneIndex + 1}`;
+            document.getElementById('startFrameImg').src = startImageUrl;
+            
+            // Check if we have an end frame already
+            if (keyframeData[sceneIndex] && keyframeData[sceneIndex].endFrame) {
+                document.getElementById('endFrameImg').src = keyframeData[sceneIndex].endFrame;
+                document.getElementById('endFrameImg').style.display = 'block';
+                document.getElementById('endFramePlaceholder').style.display = 'none';
+                document.getElementById('endFrameContainer').classList.remove('empty');
+            } else {
+                document.getElementById('endFrameImg').style.display = 'none';
+                document.getElementById('endFramePlaceholder').style.display = 'flex';
+                document.getElementById('endFrameContainer').classList.add('empty');
+            }
+            
+            document.getElementById('keyframeModal').style.display = 'flex';
+        }
+
+        function closeKeyframeModal() {
+            document.getElementById('keyframeModal').style.display = 'none';
+            currentSceneIndex = null;
+        }
+
+        // Close modal on outside click
+        document.getElementById('keyframeModal').addEventListener('click', (e) => {
+            if (e.target.id === 'keyframeModal') {
+                closeKeyframeModal();
+            }
+        });
+
+        // End frame upload
+        const endFrameInput = document.createElement('input');
+        endFrameInput.type = 'file';
+        endFrameInput.accept = 'image/*';
+        endFrameInput.style.display = 'none';
+        document.body.appendChild(endFrameInput);
+
+        function uploadEndFrame() {
+            endFrameInput.click();
+        }
+
+        endFrameInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const dataUrl = event.target.result;
+                document.getElementById('endFrameImg').src = dataUrl;
+                document.getElementById('endFrameImg').style.display = 'block';
+                document.getElementById('endFramePlaceholder').style.display = 'none';
+                document.getElementById('endFrameContainer').classList.remove('empty');
+                
+                // Store temporarily until save
+                if (!keyframeData[currentSceneIndex]) {
+                    keyframeData[currentSceneIndex] = {};
+                }
+                keyframeData[currentSceneIndex].endFrame = dataUrl;
+            };
+            reader.readAsDataURL(file);
+            endFrameInput.value = '';
+        });
+
+        function saveKeyframes() {
+            // Keyframes are already stored in keyframeData
+            closeKeyframeModal();
+            // Visual indicator that keyframes are set
+            if (currentSceneIndex !== null && keyframeData[currentSceneIndex]?.endFrame) {
+                const card = document.querySelector(`[data-scene-index="${currentSceneIndex}"]`);
+                if (card) {
+                    card.classList.add('has-keyframes');
+                }
+            }
+        }
+
+        function regenerateScene(index) {
+            alert(`Regenerate scene ${index + 1} - coming soon!`);
+        }
+
         // Placeholder for future functionality
         document.getElementById('generateBtn').addEventListener('click', () => {
             alert('Video generation coming soon!');
