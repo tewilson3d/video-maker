@@ -457,6 +457,45 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(project)
 }
 
+// Load project images from disk
+func (s *Server) HandleLoadProjectImages(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ProjectDir  string `json:"projectDir"`
+		SavedImages []struct {
+			Index    int    `json:"index"`
+			Filename string `json:"filename"`
+			Path     string `json:"path"`
+		} `json:"savedImages"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	
+	images := []map[string]any{}
+	
+	for _, img := range req.SavedImages {
+		imgPath := img.Path
+		if imgPath == "" {
+			imgPath = filepath.Join(req.ProjectDir, "images", img.Filename)
+		}
+		
+		if imgData, err := os.ReadFile(imgPath); err == nil {
+			base64Data := base64.StdEncoding.EncodeToString(imgData)
+			images = append(images, map[string]any{
+				"index":    img.Index,
+				"imageUrl": "data:image/png;base64," + base64Data,
+			})
+		}
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"images": images,
+	})
+}
+
 func saveBase64Image(dataURL, filepath string) error {
 	// Parse data URL: data:image/png;base64,xxxxx
 	parts := strings.SplitN(dataURL, ",", 2)
@@ -607,6 +646,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
+	mux.HandleFunc("POST /api/load-project-images", s.HandleLoadProjectImages)
 	
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
