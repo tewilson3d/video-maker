@@ -17,8 +17,11 @@
                 </div>
                 <div class="project-controls">
                     <div class="project-buttons">
-                        <button type="button" class="btn-project" id="loadProjectBtn">
+                        <button type="button" class="btn-project" id="loadProjectBtn" title="Load project from folder">
                             <span>📂</span> Load
+                        </button>
+                        <button type="button" class="btn-project" id="loadJsonBtn" title="Load from JSON file">
+                            <span>📄</span> JSON
                         </button>
                         <button type="button" class="btn-project" id="saveProjectBtn">
                             <span>💾</span> Save
@@ -353,8 +356,8 @@
         </main>
         
         <!-- Hidden file inputs -->
-
         <input type="file" id="folderBrowseInput" webkitdirectory directory style="display: none;">
+        <input type="file" id="loadJsonInput" accept=".json,application/json" style="display: none;">
 
         <!-- Project Settings Modal -->
         <div id="settingsModal" class="modal-overlay" style="display: none;">
@@ -1766,6 +1769,61 @@ Story context: ${storyContext}`;
                 reader.readAsDataURL(file);
             });
         }
+
+        // Load JSON file directly (for existing projects)
+        document.getElementById('loadJsonBtn').addEventListener('click', () => {
+            document.getElementById('loadJsonInput').click();
+        });
+
+        document.getElementById('loadJsonInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const btn = document.getElementById('loadJsonBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>📄</span> Loading...';
+            btn.disabled = true;
+
+            try {
+                const text = await file.text();
+                const project = JSON.parse(text);
+                
+                // Load project data into UI
+                loadProjectData(project);
+                
+                // If there are scenes with images, load storyboard
+                if (project.scenes && project.scenes.length > 0) {
+                    updateStoryboardTab({
+                        storyPrompt: project.storyPrompt,
+                        characters: project.characters || [],
+                        characterArt: project.characterArt || [],
+                        scenes: project.scenes
+                    });
+                }
+                
+                // Update project path if specified in the JSON
+                if (project.projectPath) {
+                    PROJECT_PATH = project.projectPath;
+                    PROJECT_SETTINGS.projectPath = PROJECT_PATH;
+                    document.getElementById('projectPathInput').value = PROJECT_PATH;
+                }
+                
+                // Load settings if present
+                if (project.settings) {
+                    Object.assign(PROJECT_SETTINGS, project.settings);
+                    localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
+                }
+                
+                showToast(`Project loaded from ${file.name}`, 'success');
+            } catch (err) {
+                console.error('Error loading JSON:', err);
+                showToast('Error loading project: ' + err.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                e.target.value = ''; // Reset for next use
+            }
+        });
 
         function gatherProjectData() {
             // Gather story prompt
