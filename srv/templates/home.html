@@ -90,22 +90,41 @@
                     <div class="section-header">
                         <h2>🎬 Storyboard Keyframes</h2>
                     </div>
-                    <div id="keyframePrompts" class="keyframe-list">
-                        <div class="prompt-card keyframe-card" data-index="0">
-                            <div class="keyframe-header">
-                                <span class="keyframe-number">Scene 1</span>
-                                <button type="button" class="btn-icon-small btn-remove-keyframe" title="Remove">✕</button>
-                            </div>
+                    
+                    <!-- Shot Sequence Input -->
+                    <div id="shotSequenceInput" class="shot-sequence-input">
+                        <div class="prompt-card">
+                            <label>Shot Sequence</label>
                             <textarea 
-                                class="keyframe-description"
-                                placeholder="Describe this scene: what's happening, who's in frame, camera angle, mood..."
-                                rows="3"
+                                id="shotSequenceText"
+                                placeholder="Enter your entire shot sequence, one shot per line. Example:
+
+1. Wide shot of the castle at dawn, mist rising
+2. Close-up of the knight's face, determined expression
+3. The knight draws his sword, camera follows the blade
+4. Dragon emerges from cave, flames flickering
+5. Epic confrontation, low angle shot"
+                                rows="8"
                             ></textarea>
+                            <span class="hint">Enter each shot on a new line. You can number them or just list them.</span>
                         </div>
+                        <button type="button" class="btn-parse-shots" id="parseShotsBtn">
+                            <span>🎬</span> Break Into Keyframes
+                        </button>
                     </div>
-                    <button type="button" class="btn-add" id="addKeyframeBtn">
-                        <span>+</span> Add Keyframe
-                    </button>
+
+                    <!-- Generated Keyframes (hidden initially) -->
+                    <div id="keyframePrompts" class="keyframe-list" style="display: none;">
+                    </div>
+                    
+                    <div id="keyframeActions" class="keyframe-actions" style="display: none;">
+                        <button type="button" class="btn-add" id="addKeyframeBtn">
+                            <span>+</span> Add Keyframe
+                        </button>
+                        <button type="button" class="btn-reset-shots" id="resetShotsBtn">
+                            <span>↺</span> Reset to Sequence Input
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -154,10 +173,59 @@
         });
 
         // Keyframe prompt management
-        let keyframeCount = 1;
+        let keyframeCount = 0;
         const keyframeContainer = document.getElementById('keyframePrompts');
-        
-        document.getElementById('addKeyframeBtn').addEventListener('click', () => {
+        const shotSequenceInput = document.getElementById('shotSequenceInput');
+        const keyframeActions = document.getElementById('keyframeActions');
+
+        // Parse shot sequence into keyframes
+        document.getElementById('parseShotsBtn').addEventListener('click', () => {
+            const text = document.getElementById('shotSequenceText').value.trim();
+            if (!text) {
+                alert('Please enter a shot sequence');
+                return;
+            }
+
+            // Parse lines - split by newlines, filter empty lines
+            const lines = text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (lines.length === 0) {
+                alert('No shots found. Enter each shot on a new line.');
+                return;
+            }
+
+            // Clear existing keyframes
+            keyframeContainer.innerHTML = '';
+            keyframeCount = 0;
+
+            // Create keyframe for each line
+            lines.forEach((line, index) => {
+                // Remove leading numbers/bullets like "1." or "1)" or "-" or "*"
+                const cleanedLine = line.replace(/^[\d]+[.)\-:]?\s*|^[-*•]\s*/g, '').trim();
+                addKeyframeCard(cleanedLine);
+            });
+
+            // Show keyframes, hide sequence input
+            shotSequenceInput.style.display = 'none';
+            keyframeContainer.style.display = 'block';
+            keyframeActions.style.display = 'flex';
+            updateRemoveButtons();
+        });
+
+        // Reset to sequence input
+        document.getElementById('resetShotsBtn').addEventListener('click', () => {
+            if (confirm('This will clear all keyframes. Continue?')) {
+                keyframeContainer.innerHTML = '';
+                keyframeContainer.style.display = 'none';
+                keyframeActions.style.display = 'none';
+                shotSequenceInput.style.display = 'block';
+                keyframeCount = 0;
+            }
+        });
+
+        function addKeyframeCard(description = '') {
             keyframeCount++;
             const card = document.createElement('div');
             card.className = 'prompt-card keyframe-card';
@@ -171,9 +239,14 @@
                     class="keyframe-description"
                     placeholder="Describe this scene: what's happening, who's in frame, camera angle, mood..."
                     rows="3"
-                ></textarea>
+                >${description}</textarea>
             `;
             keyframeContainer.appendChild(card);
+        }
+        
+        document.getElementById('addKeyframeBtn').addEventListener('click', () => {
+            addKeyframeCard();
+            renumberKeyframes();
             updateRemoveButtons();
         });
 
