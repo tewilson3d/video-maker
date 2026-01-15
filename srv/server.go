@@ -2,14 +2,18 @@ package srv
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
+	"time"
 
 	"srv.exe.dev/db"
 )
@@ -284,6 +288,140 @@ func generatePlaceholderVideo(sceneIndex int) string {
 	return fmt.Sprintf("https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4#scene=%d", sceneIndex)
 }
 
+// Save project types
+type SaveProjectRequest struct {
+	StoryPrompt   string `json:"storyPrompt"`
+	Characters    []struct {
+		Index       int    `json:"index"`
+		Description string `json:"description"`
+	} `json:"characters"`
+	CharacterArt []struct {
+		Index    int    `json:"index"`
+		ImageURL string `json:"imageUrl"`
+		IsLocal  bool   `json:"isLocal"`
+	} `json:"characterArt"`
+	Keyframes []struct {
+		Index       int    `json:"index"`
+		Description string `json:"description"`
+	} `json:"keyframes"`
+	ShotSequence  string `json:"shotSequence"`
+	ImageProvider string `json:"imageProvider"`
+	SavedAt       string `json:"savedAt"`
+}
+
+func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
+	var req SaveProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Generate project ID
+	projectID := fmt.Sprintf("proj_%d", time.Now().Unix())
+	
+	// Create project directory
+	projectDir := filepath.Join("projects", projectID)
+	imagesDir := filepath.Join(projectDir, "images")
+	
+	if err := os.MkdirAll(imagesDir, 0755); err != nil {
+		http.Error(w, "Failed to create project directory", http.StatusInternalServerError)
+		return
+	}
+
+	// Save character art images
+	savedImages := []struct {
+		Index    int    `json:"index"`
+		Filename string `json:"filename"`
+		Path     string `json:"path"`
+	}{}
+
+	for _, art := range req.CharacterArt {
+		if art.ImageURL == "" {
+			continue
+		}
+
+		filename := fmt.Sprintf("character_%d.png", art.Index)
+		filepath := filepath.Join(imagesDir, filename)
+
+		// Handle base64 data URLs
+		if strings.HasPrefix(art.ImageURL, "data:image") {
+			if err := saveBase64Image(art.ImageURL, filepath); err != nil {
+				slog.Warn("failed to save image", "error", err, "index", art.Index)
+				continue
+			}
+		} else {
+			// For URLs, just save the reference (or download in production)
+			// For now, skip non-base64 images
+			continue
+		}
+
+		savedImages = append(savedImages, struct {
+			Index    int    `json:"index"`
+			Filename string `json:"filename"`
+			Path     string `json:"path"`
+		}{
+			Index:    art.Index,
+			Filename: filename,
+			Path:     filepath,
+		})
+	}
+
+	// Create project JSON
+	project := map[string]any{
+		"id":            projectID,
+		"storyPrompt":   req.StoryPrompt,
+		"characters":    req.Characters,
+		"characterArt":  req.CharacterArt,
+		"keyframes":     req.Keyframes,
+		"shotSequence":  req.ShotSequence,
+		"imageProvider": req.ImageProvider,
+		"savedAt":       req.SavedAt,
+		"savedImages":   savedImages,
+	}
+
+	// Save JSON file
+	jsonPath := filepath.Join(projectDir, "project.json")
+	jsonData, err := json.MarshalIndent(project, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to create project JSON", http.StatusInternalServerError)
+		return
+	}
+
+	if err := os.WriteFile(jsonPath, jsonData, 0644); err != nil {
+		http.Error(w, "Failed to save project file", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"projectId": projectID,
+		"imagePath": imagesDir,
+		"jsonPath":  jsonPath,
+		"project":   project,
+	})
+}
+
+func saveBase64Image(dataURL, filepath string) error {
+	// Parse data URL: data:image/png;base64,xxxxx
+	parts := strings.SplitN(dataURL, ",", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid data URL format")
+	}
+
+	// Decode base64
+	imageData, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(filepath, imageData, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
 func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, characters []Character, characterArt []CharacterArt) []Scene {
 	colors := []string{"1a1a2e", "16213e", "0f3460", "533483", "e94560", "2d4059", "3d5a80", "5c4d7d"}
 	
@@ -411,6 +549,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("GET /api/projects/{id}", s.HandleGetProject)
 	mux.HandleFunc("POST /api/generate-character-art", s.HandleGenerateCharacterArt)
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
+	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
 	
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))

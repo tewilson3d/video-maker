@@ -882,6 +882,18 @@ footer {
     padding: 1rem 3rem;
 }
 
+.bottom-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.bottom-buttons .btn-secondary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .storyboard-info {
     flex: 1;
     display: flex;

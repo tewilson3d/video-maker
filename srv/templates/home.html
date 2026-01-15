@@ -135,11 +135,22 @@
                 <span class="info-icon">ℹ️</span>
                 <span>Storyboard will be generated using your story, characters, and keyframes. Character art will be used for visual consistency.</span>
             </div>
-            <button type="button" class="btn-primary" id="submitBtn">
-                <span class="btn-text">Generate Storyboard</span>
-                <span class="btn-loading" style="display: none;">Creating...</span>
-            </button>
+            <div class="bottom-buttons">
+                <button type="button" class="btn-secondary" id="saveProjectBtn">
+                    <span>💾</span> Save Project
+                </button>
+                <button type="button" class="btn-secondary" id="loadProjectBtn">
+                    <span>📂</span> Load Project
+                </button>
+                <button type="button" class="btn-primary" id="submitBtn">
+                    <span class="btn-text">Generate Storyboard</span>
+                    <span class="btn-loading" style="display: none;">Creating...</span>
+                </button>
+            </div>
         </div>
+        
+        <!-- Hidden file input for loading projects -->
+        <input type="file" id="loadProjectInput" accept=".json" style="display: none;">
 
         <footer>
             <p>Powered by AI • Create amazing video stories in minutes</p>
@@ -436,6 +447,192 @@
             };
             reader.readAsDataURL(file);
         });
+
+        // Save Project
+        document.getElementById('saveProjectBtn').addEventListener('click', async () => {
+            const projectData = gatherProjectData();
+            
+            // Send to server to save (server will save images to disk)
+            try {
+                const response = await fetch('/api/save-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(projectData)
+                });
+                
+                if (!response.ok) throw new Error('Failed to save project');
+                
+                const result = await response.json();
+                
+                // Also download the JSON file
+                const jsonBlob = new Blob([JSON.stringify(result.project, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(jsonBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `video-project-${result.projectId}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                alert(`Project saved!\n\nProject ID: ${result.projectId}\nImages saved to: ${result.imagePath}\nJSON file downloaded.`);
+            } catch (err) {
+                alert('Error saving project: ' + err.message);
+            }
+        });
+
+        // Load Project
+        document.getElementById('loadProjectBtn').addEventListener('click', () => {
+            document.getElementById('loadProjectInput').click();
+        });
+
+        document.getElementById('loadProjectInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const project = JSON.parse(text);
+                loadProjectData(project);
+                alert('Project loaded successfully!');
+            } catch (err) {
+                alert('Error loading project: ' + err.message);
+            }
+            e.target.value = ''; // Reset for next use
+        });
+
+        function gatherProjectData() {
+            // Gather story prompt
+            const storyPrompt = document.getElementById('storyPrompt').value.trim();
+
+            // Gather characters
+            const characters = [];
+            document.querySelectorAll('.character-card').forEach((card, index) => {
+                const description = card.querySelector('.character-description').value.trim();
+                if (description) {
+                    characters.push({ index: index + 1, description });
+                }
+            });
+
+            // Gather character art
+            const characterArt = [];
+            document.querySelectorAll('.art-card').forEach(card => {
+                const img = card.querySelector('img');
+                const charIndex = parseInt(card.dataset.character);
+                if (img && img.src) {
+                    characterArt.push({
+                        index: charIndex,
+                        imageUrl: img.src,
+                        isLocal: img.src.startsWith('data:')
+                    });
+                }
+            });
+
+            // Gather keyframes
+            const keyframes = [];
+            document.querySelectorAll('.keyframe-card').forEach((card, index) => {
+                const description = card.querySelector('.keyframe-description').value.trim();
+                if (description) {
+                    keyframes.push({ index: index + 1, description });
+                }
+            });
+
+            // Get shot sequence if still in input mode
+            const shotSequence = document.getElementById('shotSequenceText')?.value.trim() || '';
+
+            // Get image provider
+            const imageProvider = document.getElementById('imageProvider').value;
+
+            return {
+                storyPrompt,
+                characters,
+                characterArt,
+                keyframes,
+                shotSequence,
+                imageProvider,
+                savedAt: new Date().toISOString()
+            };
+        }
+
+        function loadProjectData(project) {
+            // Load story prompt
+            if (project.storyPrompt) {
+                document.getElementById('storyPrompt').value = project.storyPrompt;
+            }
+
+            // Load characters
+            if (project.characters && project.characters.length > 0) {
+                // Clear existing and add new
+                const container = document.getElementById('characterPrompts');
+                container.innerHTML = '';
+                characterCount = 0;
+                
+                project.characters.forEach(char => {
+                    addCharacterCard(char.description);
+                });
+                updateRemoveButtons();
+            }
+
+            // Load character art if available
+            if (project.characterArt && project.characterArt.length > 0) {
+                const artGrid = document.getElementById('characterArtGrid');
+                artGrid.innerHTML = project.characterArt.map(art => `
+                    <div class="art-card" data-character="${art.index}">
+                        <div class="art-image-container">
+                            <img src="${art.imageUrl}" alt="Character ${art.index}">
+                            <div class="art-overlay">
+                                <button class="btn-icon" onclick="regenerateCharacter(${art.index})" title="Regenerate">🔄</button>
+                                <button class="btn-icon" onclick="replaceWithLocal(${art.index})" title="Upload Local Image">📁</button>
+                                <button class="btn-icon" onclick="downloadImage('${art.imageUrl}')" title="Download">⬇️</button>
+                            </div>
+                        </div>
+                        <div class="art-label">Character ${art.index}</div>
+                        <div class="art-provider">${art.isLocal ? 'Local Upload' : 'Loaded from project'}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Load keyframes
+            if (project.keyframes && project.keyframes.length > 0) {
+                // Show keyframe cards, hide sequence input
+                shotSequenceInput.style.display = 'none';
+                keyframeContainer.style.display = 'block';
+                keyframeActions.style.display = 'flex';
+                
+                keyframeContainer.innerHTML = '';
+                keyframeCount = 0;
+                
+                project.keyframes.forEach(kf => {
+                    addKeyframeCard(kf.description);
+                });
+                updateRemoveButtons();
+            } else if (project.shotSequence) {
+                // Load shot sequence
+                document.getElementById('shotSequenceText').value = project.shotSequence;
+            }
+
+            // Load image provider
+            if (project.imageProvider) {
+                document.getElementById('imageProvider').value = project.imageProvider;
+            }
+        }
+
+        function addCharacterCard(description = '') {
+            characterCount++;
+            const card = document.createElement('div');
+            card.className = 'prompt-card character-card';
+            card.dataset.index = characterCount - 1;
+            card.innerHTML = `
+                <div class="character-header">
+                    <span class="character-label">Character ${characterCount}</span>
+                    <button type="button" class="btn-icon-small btn-remove-character" title="Remove">✕</button>
+                </div>
+                <textarea 
+                    class="character-description"
+                    placeholder="e.g., 'Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek. She's determined but haunted by her past.'"
+                    rows="3"
+                >${description}</textarea>
+            `;
+            document.getElementById('characterPrompts').appendChild(card);
+        }
 
         // Form submission
         document.getElementById('submitBtn').addEventListener('click', async () => {
