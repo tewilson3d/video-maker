@@ -103,7 +103,18 @@
             </div>
         </header>
 
-        <main class="prompt-layout">
+        <!-- Main Tabs -->
+        <div class="main-tabs">
+            <button class="main-tab active" data-tab="prompts" onclick="switchMainTab('prompts')">
+                <span>✍️</span> Prompts & Generation
+            </button>
+            <button class="main-tab" data-tab="storyboard" onclick="switchMainTab('storyboard')">
+                <span>🎬</span> Storyboard
+            </button>
+        </div>
+
+        <!-- Tab 1: Prompts & Generation -->
+        <main class="tab-content prompt-layout" id="promptsTab">
             <!-- Left Column: Story + Characters -->
             <div class="left-column">
                 <!-- Story Prompt -->
@@ -278,17 +289,65 @@
             </div>
         </main>
 
-        <!-- Bottom Controls -->
-        <div class="bottom-controls">
-            <div class="storyboard-info">
-                <span class="info-icon">ℹ️</span>
-                <span>Storyboard will be generated using your story, characters, and keyframes. Character art will be used for visual consistency.</span>
+            <!-- Generate Button -->
+            <div class="generate-section">
+                <button type="button" class="btn-primary btn-generate-storyboard" id="submitBtn">
+                    <span class="btn-text">🎬 Generate Storyboard</span>
+                    <span class="btn-loading" style="display: none;">Creating...</span>
+                </button>
             </div>
-            <button type="button" class="btn-primary" id="submitBtn">
-                <span class="btn-text">Generate Storyboard</span>
-                <span class="btn-loading" style="display: none;">Creating...</span>
-            </button>
-        </div>
+        </main>
+
+        <!-- Tab 2: Storyboard -->
+        <main class="tab-content storyboard-tab" id="storyboardTab" style="display: none;">
+            <div class="storyboard-empty" id="storyboardEmpty">
+                <div class="empty-state">
+                    <span class="empty-icon">🎬</span>
+                    <h3>No Storyboard Yet</h3>
+                    <p>Go to "Prompts & Generation" tab to create your story and generate a storyboard.</p>
+                    <button class="btn-secondary" onclick="switchMainTab('prompts')">← Go to Prompts</button>
+                </div>
+            </div>
+            
+            <div class="storyboard-content" id="storyboardContent" style="display: none;">
+                <div class="storyboard-header-bar">
+                    <div class="storyboard-info-compact">
+                        <span id="storyboardStoryPreview"></span>
+                    </div>
+                    <div class="storyboard-actions">
+                        <button class="btn-secondary" onclick="regenerateStoryboard()">🔄 Regenerate</button>
+                        <button class="btn-secondary" onclick="exportStoryboard()">📤 Export</button>
+                    </div>
+                </div>
+                
+                <div class="storyboard-grid" id="storyboardGrid">
+                    <!-- Keyframe cards will be inserted here -->
+                </div>
+                
+                <div class="video-clips-section">
+                    <div class="section-header">
+                        <h3>🎬 Video Clips</h3>
+                        <button class="btn-generate-video" id="generateClipsBtn">
+                            <span class="btn-text">✨ Generate Video Clips</span>
+                            <span class="btn-loading" style="display: none;">Generating...</span>
+                        </button>
+                    </div>
+                    <div class="video-clips-grid" id="videoClipsGrid">
+                        <div class="video-placeholder">
+                            <span class="placeholder-icon">🎬</span>
+                            <span>Generate storyboard first, then create video clips</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="timeline-section">
+                    <h4>Timeline Preview</h4>
+                    <div class="timeline-track" id="timelineTrack">
+                        <!-- Timeline items will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </main>
         
         <!-- Hidden file inputs -->
         <input type="file" id="loadProjectInput" accept=".json" style="display: none;">
@@ -388,6 +447,89 @@
         let googleUser = null;
         let accessToken = null;
         let currentAuthTab = 'apikey';
+
+        // Main Tab Switching
+        function switchMainTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.main-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
+            
+            // Show/hide tab content
+            document.getElementById('promptsTab').style.display = tabName === 'prompts' ? 'grid' : 'none';
+            document.getElementById('storyboardTab').style.display = tabName === 'storyboard' ? 'block' : 'none';
+        }
+
+        // Storyboard data
+        let currentStoryboard = null;
+
+        function updateStoryboardTab(storyboardData) {
+            currentStoryboard = storyboardData;
+            
+            // Hide empty state, show content
+            document.getElementById('storyboardEmpty').style.display = 'none';
+            document.getElementById('storyboardContent').style.display = 'block';
+            
+            // Update story preview
+            const storyPreview = storyboardData.storyPrompt?.substring(0, 100) + '...' || 'No story';
+            document.getElementById('storyboardStoryPreview').textContent = storyPreview;
+            
+            // Render storyboard grid
+            const grid = document.getElementById('storyboardGrid');
+            grid.innerHTML = storyboardData.scenes.map((scene, index) => `
+                <div class="storyboard-card" data-scene-index="${index}">
+                    <div class="card-header">
+                        <span class="scene-number">Scene ${index + 1}</span>
+                        <div class="card-actions">
+                            <button class="btn-icon-sm" onclick="editScene(${index})" title="Edit">✏️</button>
+                            <button class="btn-icon-sm" onclick="regenerateScene(${index})" title="Regenerate">🔄</button>
+                        </div>
+                    </div>
+                    <div class="card-image" onclick="openSceneDetail(${index})">
+                        <img src="${scene.imageUrl || 'https://placehold.co/512x288/1a1a2e/ffffff?text=Scene+' + (index + 1)}" alt="Scene ${index + 1}">
+                    </div>
+                    <div class="card-content">
+                        <p class="scene-narration">${scene.narration || scene.description || ''}</p>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update timeline
+            const timeline = document.getElementById('timelineTrack');
+            timeline.innerHTML = storyboardData.scenes.map((scene, index) => `
+                <div class="timeline-item" style="background-image: url('${scene.imageUrl || ''}')" onclick="scrollToScene(${index})"></div>
+            `).join('');
+            
+            // Switch to storyboard tab
+            switchMainTab('storyboard');
+        }
+
+        function editScene(index) {
+            alert('Edit scene ' + (index + 1) + ' - coming soon!');
+        }
+
+        function regenerateScene(index) {
+            alert('Regenerate scene ' + (index + 1) + ' - coming soon!');
+        }
+
+        function openSceneDetail(index) {
+            alert('Scene detail view - coming soon!');
+        }
+
+        function scrollToScene(index) {
+            const card = document.querySelector(`[data-scene-index="${index}"]`);
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function regenerateStoryboard() {
+            if (confirm('Regenerate entire storyboard?')) {
+                switchMainTab('prompts');
+            }
+        }
+
+        function exportStoryboard() {
+            alert('Export storyboard - coming soon!');
+        }
 
         // Project Settings
         let PROJECT_SETTINGS = JSON.parse(localStorage.getItem('projectSettings') || '{}');
@@ -903,20 +1045,19 @@
             btn.querySelector('.btn-text').textContent = '✨ Generate with Gemini';
         }
 
-        async function generateImageWithGemini(prompt) {
-            const geminiPrompt = `Generate a high-quality character portrait image: ${prompt}. Style: Detailed, professional character art, suitable for video/animation. Full color, high resolution.`;
-            
+        // Generic Gemini image generation function
+        async function callGeminiImageAPI(prompt) {
+            if (!GEMINI_API_KEY && !accessToken) {
+                throw new Error('No API key or OAuth token configured. Please set up Gemini API first.');
+            }
+
             // Build URL and headers based on auth method
             let url, headers;
             
             if (GEMINI_API_KEY) {
-                // Use API key
                 url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
-                headers = {
-                    'Content-Type': 'application/json'
-                };
+                headers = { 'Content-Type': 'application/json' };
             } else {
-                // Use OAuth token
                 url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
                 headers = {
                     'Content-Type': 'application/json',
@@ -928,14 +1069,8 @@
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: geminiPrompt
-                        }]
-                    }],
-                    generationConfig: {
-                        responseModalities: ["image", "text"]
-                    }
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { responseModalities: ["image", "text"] }
                 })
             });
 
@@ -955,8 +1090,33 @@
                 }
             }
             
-            throw new Error('No image in response - Gemini may not support image generation with this model. Try the manual flow.');
+            throw new Error('No image in response - Gemini may not support image generation with this model.');
         }
+
+        // Generate character portrait image
+        async function generateImageWithGemini(prompt) {
+            const geminiPrompt = `Generate a high-quality character portrait image: ${prompt}. Style: Detailed, professional character art, suitable for video/animation. Full color, high resolution.`;
+            return await callGeminiImageAPI(geminiPrompt);
+        }
+
+        // Generate scene/storyboard image
+        async function generateSceneImageWithGemini(sceneDescription, storyContext, characterDescriptions = []) {
+            let geminiPrompt = `Generate a cinematic storyboard frame image for a video scene.
+
+Scene description: ${sceneDescription}
+
+Story context: ${storyContext}`;
+            
+            if (characterDescriptions.length > 0) {
+                geminiPrompt += `\n\nCharacters that may appear (maintain visual consistency):\n${characterDescriptions.map((c, i) => `- Character ${i+1}: ${c}`).join('\n')}`;
+            }
+            
+            geminiPrompt += `\n\nStyle: Cinematic, high-quality, suitable for video/animation storyboard. Aspect ratio 16:9, dramatic lighting, professional composition.`;
+            
+            return await callGeminiImageAPI(geminiPrompt);
+        }
+
+
 
         function updateCharacterCard(index, imageUrl) {
             const card = document.querySelector(`.art-card[data-character="${index}"]`);
@@ -1463,6 +1623,13 @@
                 return;
             }
 
+            // Check if API is configured
+            if (!GEMINI_API_KEY && !accessToken) {
+                alert('Please configure Gemini API first (click the settings icon in the header)');
+                document.getElementById('oauthSetupModal').style.display = 'flex';
+                return;
+            }
+
             const characters = [];
             document.querySelectorAll('.character-card').forEach((card, index) => {
                 const description = card.querySelector('.character-description').value.trim();
@@ -1492,10 +1659,64 @@
                 }
             });
 
+            if (keyframes.length === 0) {
+                alert('Please add at least one keyframe/scene');
+                return;
+            }
+
             btn.disabled = true;
             btnText.style.display = 'none';
             btnLoading.style.display = 'inline';
             
+            // Build scenes with placeholder images first, then generate real images
+            const scenes = keyframes.map((kf, i) => ({
+                id: `scene_${i+1}`,
+                narration: kf.description,
+                imagePrompt: kf.description,
+                imageUrl: null, // Will be filled by Gemini
+                status: 'pending'
+            }));
+
+            // Show storyboard tab immediately with loading state
+            updateStoryboardTabWithLoading({
+                storyPrompt: storyPrompt,
+                characters: characters,
+                characterArt: characterArt,
+                scenes: scenes
+            });
+
+            // Switch to storyboard tab
+            switchMainTab('storyboard');
+
+            // Generate images for each scene using Gemini
+            const characterDescriptions = characters.map(c => c.description);
+            let hasErrors = false;
+
+            for (let i = 0; i < scenes.length; i++) {
+                const scene = scenes[i];
+                try {
+                    updateSceneStatus(i, 'generating', `Generating scene ${i + 1}...`);
+                    
+                    const imageUrl = await generateSceneImageWithGemini(
+                        scene.narration,
+                        storyPrompt,
+                        characterDescriptions
+                    );
+                    
+                    scene.imageUrl = imageUrl;
+                    scene.status = 'complete';
+                    updateSceneImage(i, imageUrl);
+                    
+                } catch (err) {
+                    console.error(`Failed to generate scene ${i + 1}:`, err);
+                    scene.status = 'error';
+                    scene.error = err.message;
+                    updateSceneError(i, err.message);
+                    hasErrors = true;
+                }
+            }
+
+            // Save project to server
             try {
                 const response = await fetch('/api/projects', {
                     method: 'POST',
@@ -1505,21 +1726,172 @@
                         characters,
                         characterArt,
                         keyframes,
-                        imageProvider: 'gemini'
+                        imageProvider: 'gemini',
+                        settings: PROJECT_SETTINGS
                     })
                 });
                 
-                if (!response.ok) throw new Error('Failed to create project');
-                
-                const data = await response.json();
-                window.location.href = data.redirect;
+                if (response.ok) {
+                    const data = await response.json();
+                    currentStoryboard.projectId = data.projectId;
+                }
             } catch (err) {
-                alert('Error creating project: ' + err.message);
-                btn.disabled = false;
-                btnText.style.display = 'inline';
-                btnLoading.style.display = 'none';
+                console.warn('Failed to save project to server:', err);
+            }
+
+            btn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+
+            if (hasErrors) {
+                alert('Some scenes failed to generate. You can click the regenerate button on failed scenes to retry.');
             }
         });
+
+        // Update storyboard with loading state
+        function updateStoryboardTabWithLoading(storyboardData) {
+            currentStoryboard = storyboardData;
+            
+            document.getElementById('storyboardEmpty').style.display = 'none';
+            document.getElementById('storyboardContent').style.display = 'block';
+            
+            const storyPreview = storyboardData.storyPrompt?.substring(0, 100) + '...' || 'No story';
+            document.getElementById('storyboardStoryPreview').textContent = storyPreview;
+            
+            // Render storyboard grid with loading state
+            const grid = document.getElementById('storyboardGrid');
+            grid.innerHTML = storyboardData.scenes.map((scene, index) => `
+                <div class="storyboard-card" data-scene-index="${index}">
+                    <div class="card-header">
+                        <span class="scene-number">Scene ${index + 1}</span>
+                        <div class="card-actions">
+                            <button class="btn-icon-sm" onclick="regenerateSceneImage(${index})" title="Regenerate">🔄</button>
+                        </div>
+                    </div>
+                    <div class="card-image loading-state">
+                        <div class="scene-loading">
+                            <div class="scene-loading-spinner"></div>
+                            <span class="scene-loading-text">Waiting...</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <p class="scene-narration">${scene.narration || ''}</p>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update timeline with placeholders
+            const timeline = document.getElementById('timelineTrack');
+            timeline.innerHTML = storyboardData.scenes.map((scene, index) => `
+                <div class="timeline-item timeline-loading" data-scene-index="${index}"></div>
+            `).join('');
+        }
+
+        // Update scene status during generation
+        function updateSceneStatus(index, status, message) {
+            const card = document.querySelector(`.storyboard-card[data-scene-index="${index}"]`);
+            if (!card) return;
+            
+            const loadingText = card.querySelector('.scene-loading-text');
+            if (loadingText) {
+                loadingText.textContent = message;
+            }
+            
+            const cardImage = card.querySelector('.card-image');
+            if (cardImage) {
+                cardImage.className = `card-image ${status === 'generating' ? 'generating-state' : 'loading-state'}`;
+            }
+        }
+
+        // Update scene with generated image
+        function updateSceneImage(index, imageUrl) {
+            const card = document.querySelector(`.storyboard-card[data-scene-index="${index}"]`);
+            if (!card) return;
+            
+            const cardImage = card.querySelector('.card-image');
+            if (cardImage) {
+                cardImage.className = 'card-image';
+                cardImage.innerHTML = `<img src="${imageUrl}" alt="Scene ${index + 1}">`;
+            }
+            
+            // Update timeline
+            const timelineItem = document.querySelector(`.timeline-item[data-scene-index="${index}"]`);
+            if (timelineItem) {
+                timelineItem.classList.remove('timeline-loading');
+                timelineItem.style.backgroundImage = `url('${imageUrl}')`;
+            }
+            
+            // Update currentStoryboard
+            if (currentStoryboard && currentStoryboard.scenes[index]) {
+                currentStoryboard.scenes[index].imageUrl = imageUrl;
+            }
+        }
+
+        // Update scene with error state
+        function updateSceneError(index, errorMessage) {
+            const card = document.querySelector(`.storyboard-card[data-scene-index="${index}"]`);
+            if (!card) return;
+            
+            const cardImage = card.querySelector('.card-image');
+            if (cardImage) {
+                cardImage.className = 'card-image error-state';
+                cardImage.innerHTML = `
+                    <div class="scene-error">
+                        <span class="error-icon">⚠️</span>
+                        <span class="error-text">Generation failed</span>
+                        <button class="btn-retry" onclick="regenerateSceneImage(${index})">Retry</button>
+                    </div>
+                `;
+            }
+            
+            // Update timeline
+            const timelineItem = document.querySelector(`.timeline-item[data-scene-index="${index}"]`);
+            if (timelineItem) {
+                timelineItem.classList.remove('timeline-loading');
+                timelineItem.classList.add('timeline-error');
+            }
+        }
+
+        // Regenerate a single scene image
+        async function regenerateSceneImage(index) {
+            if (!currentStoryboard || !currentStoryboard.scenes[index]) return;
+            
+            const scene = currentStoryboard.scenes[index];
+            const characterDescriptions = (currentStoryboard.characters || []).map(c => c.description);
+            
+            // Show loading state
+            const card = document.querySelector(`.storyboard-card[data-scene-index="${index}"]`);
+            if (card) {
+                const cardImage = card.querySelector('.card-image');
+                if (cardImage) {
+                    cardImage.className = 'card-image generating-state';
+                    cardImage.innerHTML = `
+                        <div class="scene-loading">
+                            <div class="scene-loading-spinner"></div>
+                            <span class="scene-loading-text">Regenerating...</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            try {
+                const imageUrl = await generateSceneImageWithGemini(
+                    scene.narration,
+                    currentStoryboard.storyPrompt,
+                    characterDescriptions
+                );
+                
+                scene.imageUrl = imageUrl;
+                scene.status = 'complete';
+                updateSceneImage(index, imageUrl);
+                
+            } catch (err) {
+                console.error(`Failed to regenerate scene ${index + 1}:`, err);
+                scene.status = 'error';
+                scene.error = err.message;
+                updateSceneError(index, err.message);
+            }
+        }
     </script>
 </body>
 </html>
