@@ -26,16 +26,23 @@ type Server struct {
 }
 
 type Project struct {
-	ID          string      `json:"id"`
-	StoryPrompt string      `json:"storyPrompt"`
-	ImageStyle  string      `json:"imageStyle"`
-	Characters  []Character `json:"characters"`
-	Keyframes   []Keyframe  `json:"keyframes"`
-	Scenes      []Scene     `json:"scenes"`
+	ID            string         `json:"id"`
+	StoryPrompt   string         `json:"storyPrompt"`
+	Characters    []Character    `json:"characters"`
+	CharacterArt  []CharacterArt `json:"characterArt"`
+	Keyframes     []Keyframe     `json:"keyframes"`
+	Scenes        []Scene        `json:"scenes"`
+	ImageProvider string         `json:"imageProvider"`
 }
 
 type Character struct {
+	Index       int    `json:"index"`
 	Description string `json:"description"`
+}
+
+type CharacterArt struct {
+	Index    int    `json:"index"`
+	ImageURL string `json:"imageUrl"`
 }
 
 type Keyframe struct {
@@ -91,10 +98,11 @@ func (s *Server) HandleStoryboard(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) HandleCreateProject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		StoryPrompt string      `json:"storyPrompt"`
-		ImageStyle  string      `json:"imageStyle"`
-		Characters  []Character `json:"characters"`
-		Keyframes   []Keyframe  `json:"keyframes"`
+		StoryPrompt   string         `json:"storyPrompt"`
+		Characters    []Character    `json:"characters"`
+		CharacterArt  []CharacterArt `json:"characterArt"`
+		Keyframes     []Keyframe     `json:"keyframes"`
+		ImageProvider string         `json:"imageProvider"`
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -105,17 +113,17 @@ func (s *Server) HandleCreateProject(w http.ResponseWriter, r *http.Request) {
 	// Generate a simple project ID
 	projectID := fmt.Sprintf("proj_%d", len(s.projects)+1)
 	
-	// For now, create mock scenes based on keyframes or generate defaults
-	// Later this will call AI APIs
-	scenes := generateScenesFromKeyframes(req.Keyframes, req.StoryPrompt)
+	// Generate scenes using keyframes, characters, and character art for consistency
+	scenes := generateScenesWithCharacters(req.Keyframes, req.StoryPrompt, req.Characters, req.CharacterArt)
 	
 	project := &Project{
-		ID:          projectID,
-		StoryPrompt: req.StoryPrompt,
-		ImageStyle:  req.ImageStyle,
-		Characters:  req.Characters,
-		Keyframes:   req.Keyframes,
-		Scenes:      scenes,
+		ID:            projectID,
+		StoryPrompt:   req.StoryPrompt,
+		Characters:    req.Characters,
+		CharacterArt:  req.CharacterArt,
+		Keyframes:     req.Keyframes,
+		Scenes:        scenes,
+		ImageProvider: req.ImageProvider,
 	}
 	
 	s.mu.Lock()
@@ -204,57 +212,85 @@ func generateCharacterImage(prompt, provider, color string) string {
 	return fmt.Sprintf("https://placehold.co/512x512/%s/ffffff?text=Character+Art", color)
 }
 
-func generateScenesFromKeyframes(keyframes []Keyframe, storyPrompt string) []Scene {
+func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, characters []Character, characterArt []CharacterArt) []Scene {
 	colors := []string{"1a1a2e", "16213e", "0f3460", "533483", "e94560", "2d4059", "3d5a80", "5c4d7d"}
+	
+	// Build character art lookup map
+	artMap := make(map[int]string)
+	for _, art := range characterArt {
+		artMap[art.Index] = art.ImageURL
+	}
+	
+	// Build character description lookup
+	charMap := make(map[int]string)
+	for _, char := range characters {
+		charMap[char.Index] = char.Description
+	}
 	
 	// If keyframes provided, use them
 	if len(keyframes) > 0 {
 		scenes := make([]Scene, len(keyframes))
 		for i, kf := range keyframes {
 			colorIdx := i % len(colors)
+			
+			// Build image prompt that includes character references
+			imagePrompt := buildScenePrompt(kf.Description, characters, characterArt)
+			
+			// TODO: In production, this would call the image generation API
+			// with the character art images as reference for consistency
+			// For now, use placeholder
 			scenes[i] = Scene{
 				ID:          fmt.Sprintf("scene_%d", i+1),
 				Narration:   kf.Description,
-				ImagePrompt: kf.Description,
-				ImageURL:    fmt.Sprintf("https://placehold.co/512x512/%s/ffffff?text=Scene+%d", colors[colorIdx], i+1),
+				ImagePrompt: imagePrompt,
+				ImageURL:    fmt.Sprintf("https://placehold.co/512x288/%s/ffffff?text=Scene+%d", colors[colorIdx], i+1),
 			}
 		}
 		return scenes
 	}
 	
-	// Default scenes if no keyframes
-	return []Scene{
-		{
-			ID:          "scene_1",
-			Narration:   "Opening scene: " + truncate(storyPrompt, 50) + "...",
-			ImagePrompt: "A cinematic opening shot",
-			ImageURL:    "https://placehold.co/512x512/1a1a2e/ffffff?text=Scene+1",
-		},
-		{
-			ID:          "scene_2",
-			Narration:   "The story develops as characters are introduced.",
-			ImagePrompt: "Character introduction",
-			ImageURL:    "https://placehold.co/512x512/16213e/ffffff?text=Scene+2",
-		},
-		{
-			ID:          "scene_3",
-			Narration:   "Tension builds as the conflict emerges.",
-			ImagePrompt: "Rising action",
-			ImageURL:    "https://placehold.co/512x512/0f3460/ffffff?text=Scene+3",
-		},
-		{
-			ID:          "scene_4",
-			Narration:   "The climax of our story unfolds.",
-			ImagePrompt: "Dramatic climax",
-			ImageURL:    "https://placehold.co/512x512/533483/ffffff?text=Scene+4",
-		},
-		{
-			ID:          "scene_5",
-			Narration:   "Resolution and conclusion of the narrative.",
-			ImagePrompt: "Final scene",
-			ImageURL:    "https://placehold.co/512x512/e94560/ffffff?text=Scene+5",
-		},
+	// Default scenes if no keyframes - generate based on story
+	defaultScenes := []struct {
+		narration string
+		prompt    string
+	}{
+		{"Opening scene: " + truncate(storyPrompt, 80), "Establishing shot, cinematic opening"},
+		{"The characters are introduced.", "Character introduction scene"},
+		{"The story develops and tension builds.", "Rising action, dramatic lighting"},
+		{"The climax of our story unfolds.", "Climactic moment, intense emotion"},
+		{"Resolution and conclusion.", "Final scene, resolution"},
 	}
+	
+	scenes := make([]Scene, len(defaultScenes))
+	for i, ds := range defaultScenes {
+		colorIdx := i % len(colors)
+		imagePrompt := buildScenePrompt(ds.prompt, characters, characterArt)
+		scenes[i] = Scene{
+			ID:          fmt.Sprintf("scene_%d", i+1),
+			Narration:   ds.narration,
+			ImagePrompt: imagePrompt,
+			ImageURL:    fmt.Sprintf("https://placehold.co/512x288/%s/ffffff?text=Scene+%d", colors[colorIdx], i+1),
+		}
+	}
+	return scenes
+}
+
+// buildScenePrompt creates a detailed prompt that references character art for consistency
+func buildScenePrompt(sceneDescription string, characters []Character, characterArt []CharacterArt) string {
+	prompt := sceneDescription
+	
+	if len(characters) > 0 {
+		prompt += "\n\nCharacters in scene (use reference images for consistency):"
+		for _, char := range characters {
+			prompt += fmt.Sprintf("\n- %s", char.Description)
+		}
+	}
+	
+	if len(characterArt) > 0 {
+		prompt += fmt.Sprintf("\n\n[%d character reference image(s) provided for visual consistency]", len(characterArt))
+	}
+	
+	return prompt
 }
 
 func truncate(s string, maxLen int) string {

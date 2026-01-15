@@ -112,18 +112,9 @@
 
         <!-- Bottom Controls -->
         <div class="bottom-controls">
-            <div class="form-group style-select">
-                <label for="imageStyle">Visual Style</label>
-                <select id="imageStyle" name="imageStyle">
-                    <option value="cinematic">Cinematic / Realistic</option>
-                    <option value="anime">Anime / Manga</option>
-                    <option value="watercolor">Watercolor Painting</option>
-                    <option value="3d-render">3D Render</option>
-                    <option value="comic">Comic Book</option>
-                    <option value="fantasy">Fantasy Art</option>
-                    <option value="noir">Film Noir</option>
-                    <option value="pixel">Pixel Art</option>
-                </select>
+            <div class="storyboard-info">
+                <span class="info-icon">ℹ️</span>
+                <span>Storyboard will be generated using your story, characters, and keyframes. Character art will be used for visual consistency.</span>
             </div>
             <button type="button" class="btn-primary" id="submitBtn">
                 <span class="btn-text">Generate Storyboard</span>
@@ -349,10 +340,23 @@
             }
 
             const characters = [];
-            document.querySelectorAll('.character-card').forEach(card => {
+            document.querySelectorAll('.character-card').forEach((card, index) => {
                 const description = card.querySelector('.character-description').value.trim();
                 if (description) {
-                    characters.push({ description });
+                    characters.push({ description, index: index + 1 });
+                }
+            });
+
+            // Collect generated character art
+            const characterArt = [];
+            document.querySelectorAll('.art-card').forEach(card => {
+                const img = card.querySelector('img');
+                const charIndex = parseInt(card.dataset.character);
+                if (img && img.src) {
+                    characterArt.push({
+                        index: charIndex,
+                        imageUrl: img.src
+                    });
                 }
             });
 
@@ -374,9 +378,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         storyPrompt,
-                        imageStyle: document.getElementById('imageStyle').value,
                         characters,
-                        keyframes
+                        characterArt,
+                        keyframes,
+                        imageProvider: document.getElementById('imageProvider').value
                     })
                 });
                 

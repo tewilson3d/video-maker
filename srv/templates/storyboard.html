@@ -22,10 +22,16 @@
                 <span class="info-label">Story:</span>
                 <span class="info-value">{{.StoryPrompt}}</span>
             </div>
+            {{if .CharacterArt}}
             <div class="info-item">
-                <span class="info-label">Style:</span>
-                <span class="info-value style-badge">{{.ImageStyle}}</span>
+                <span class="info-label">Characters:</span>
+                <div class="character-refs">
+                    {{range .CharacterArt}}
+                    <img src="{{.ImageURL}}" alt="Character {{.Index}}" class="character-ref-thumb" title="Character {{.Index}}">
+                    {{end}}
+                </div>
             </div>
+            {{end}}
         </div>
 
         <main class="storyboard-grid">
