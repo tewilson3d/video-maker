@@ -353,7 +353,7 @@
         </main>
         
         <!-- Hidden file inputs -->
-        <input type="file" id="loadProjectInput" accept=".json" style="display: none;">
+
         <input type="file" id="folderBrowseInput" webkitdirectory directory style="display: none;">
 
         <!-- Project Settings Modal -->
@@ -366,10 +366,22 @@
                 <div class="modal-body">
                     <div class="settings-section">
                         <h4>📁 Project Folder</h4>
-                        <p class="settings-desc">Where images and project files are saved on the server</p>
+                        <p class="settings-desc">Full path to your project folder on the server. This folder will contain project.json, images/, and videos/</p>
                         <div class="folder-input-group">
-                            <input type="text" id="projectPathInput" placeholder="/path/to/projects" readonly>
-                            <button type="button" class="btn-browse" onclick="browseFolder()">📂 Browse</button>
+                            <input type="text" id="projectPathInput" placeholder="/home/exedev/video-maker/projects/my-project">
+                        </div>
+                        <div class="folder-structure-preview">
+                            <code id="folderStructurePreview">
+📁 project-folder/
+├── project.json
+├── images/
+│   ├── character_1.png
+│   ├── scene_1.png
+│   └── ...
+└── videos/
+    ├── clip_1.mp4
+    └── ...
+                            </code>
                         </div>
                     </div>
 
@@ -1400,86 +1412,99 @@ Story context: ${storyContext}`;
             input.click();
         }
 
-        // Save Project - download JSON and save images to server
+        // Save Project - save everything to project folder on server
         document.getElementById('saveProjectBtn').addEventListener('click', async () => {
+            if (!PROJECT_PATH || PROJECT_PATH.trim() === '') {
+                alert('Please set a project folder in Settings first.');
+                openSettingsModal();
+                return;
+            }
+
             const projectData = gatherProjectData();
+            
+            // Include storyboard scenes if they exist
+            if (currentStoryboard && currentStoryboard.scenes) {
+                projectData.scenes = currentStoryboard.scenes;
+            }
+            
             projectData.projectPath = PROJECT_PATH;
+            projectData.settings = PROJECT_SETTINGS;
+            
+            const btn = document.getElementById('saveProjectBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>💾</span> Saving...';
+            btn.disabled = true;
             
             try {
-                // Save images to server first
                 const response = await fetch('/api/save-project', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(projectData)
                 });
                 
-                if (!response.ok) throw new Error('Failed to save images');
+                if (!response.ok) {
+                    const err = await response.text();
+                    throw new Error(err || 'Failed to save project');
+                }
                 
                 const result = await response.json();
                 
-                // Update project data with saved image paths
-                projectData.savedImages = result.savedImages;
-                projectData.projectId = result.projectId;
-                projectData.projectDir = result.projectDir;
-                
-                // Download JSON file via file browser
-                const jsonBlob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(jsonBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${result.projectId}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                alert(`Project saved!\n\nImages saved to: ${result.projectDir}/images/\nJSON file downloaded.`);
+                alert(`Project saved successfully!\n\nLocation: ${result.projectPath}\n\nSaved:\n- project.json\n- ${result.imageCount} images\n- ${result.videoCount || 0} videos`);
             } catch (err) {
                 alert('Error saving project: ' + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         });
 
-        // Load Project - open file browser to select JSON
-        document.getElementById('loadProjectBtn').addEventListener('click', () => {
-            document.getElementById('loadProjectInput').click();
-        });
-
-        document.getElementById('loadProjectInput').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        // Load Project - load from project folder path
+        document.getElementById('loadProjectBtn').addEventListener('click', async () => {
+            // Prompt for project folder path
+            const projectPath = prompt('Enter the project folder path:', PROJECT_PATH || '/home/exedev/video-maker/projects/my-project');
+            if (!projectPath) return;
+            
+            const btn = document.getElementById('loadProjectBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>📂</span> Loading...';
+            btn.disabled = true;
 
             try {
-                const text = await file.text();
-                const project = JSON.parse(text);
+                const response = await fetch(`/api/load-project?path=${encodeURIComponent(projectPath)}`);
                 
-                // If project has saved images on server, load them
-                if (project.projectDir && project.savedImages?.length > 0) {
-                    try {
-                        const response = await fetch(`/api/load-project-images`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                projectDir: project.projectDir,
-                                savedImages: project.savedImages
-                            })
-                        });
-                        
-                        if (response.ok) {
-                            const imageData = await response.json();
-                            // Update characterArt with loaded images
-                            if (imageData.images) {
-                                project.characterArt = imageData.images;
-                            }
-                        }
-                    } catch (imgErr) {
-                        console.warn('Could not load images from server:', imgErr);
-                    }
+                if (!response.ok) {
+                    const err = await response.text();
+                    throw new Error(err || 'Failed to load project');
                 }
                 
+                const project = await response.json();
+                
+                // Update project path setting
+                PROJECT_PATH = projectPath;
+                PROJECT_SETTINGS.projectPath = projectPath;
+                localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
+                document.getElementById('projectPathInput').value = projectPath;
+                
+                // Load project data into UI
                 loadProjectData(project);
-                alert('Project loaded successfully!');
+                
+                // If there are scenes with images, load storyboard
+                if (project.scenes && project.scenes.length > 0) {
+                    updateStoryboardTab({
+                        storyPrompt: project.storyPrompt,
+                        characters: project.characters || [],
+                        characterArt: project.characterArt || [],
+                        scenes: project.scenes
+                    });
+                }
+                
+                alert(`Project loaded successfully!\n\nLoaded from: ${projectPath}`);
             } catch (err) {
                 alert('Error loading project: ' + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-            e.target.value = ''; // Reset for next use
         });
 
         function gatherProjectData() {

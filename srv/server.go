@@ -290,137 +290,158 @@ func generatePlaceholderVideo(sceneIndex int) string {
 
 // Save project types
 type SaveProjectRequest struct {
-	ProjectPath   string `json:"projectPath"`
-	StoryPrompt   string `json:"storyPrompt"`
-	Characters    []struct {
-		Index       int    `json:"index"`
-		Description string `json:"description"`
-	} `json:"characters"`
-	CharacterArt []struct {
-		Index    int    `json:"index"`
-		ImageURL string `json:"imageUrl"`
-		IsLocal  bool   `json:"isLocal"`
-	} `json:"characterArt"`
-	Keyframes []struct {
-		Index       int    `json:"index"`
-		Description string `json:"description"`
-	} `json:"keyframes"`
-	ShotSequence  string `json:"shotSequence"`
-	ImageProvider string `json:"imageProvider"`
-	SavedAt       string `json:"savedAt"`
+	ProjectPath   string                   `json:"projectPath"`
+	StoryPrompt   string                   `json:"storyPrompt"`
+	Characters    []map[string]any         `json:"characters"`
+	CharacterArt  []map[string]any         `json:"characterArt"`
+	Keyframes     []map[string]any         `json:"keyframes"`
+	Scenes        []map[string]any         `json:"scenes"`
+	ShotSequence  string                   `json:"shotSequence"`
+	ImageProvider string                   `json:"imageProvider"`
+	Settings      map[string]any           `json:"settings"`
+	SavedAt       string                   `json:"savedAt"`
 }
 
 func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 	var req SaveProjectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Use provided project path or default
-	basePath := req.ProjectPath
-	if basePath == "" {
-		basePath = "projects"
+	projectPath := req.ProjectPath
+	if projectPath == "" {
+		http.Error(w, "Project path is required", http.StatusBadRequest)
+		return
 	}
 
-	// Generate project ID
-	projectID := fmt.Sprintf("proj_%d", time.Now().Unix())
-	
-	// Create project directory
-	projectDir := filepath.Join(basePath, projectID)
-	imagesDir := filepath.Join(projectDir, "images")
+	// Create project directories
+	imagesDir := filepath.Join(projectPath, "images")
+	videosDir := filepath.Join(projectPath, "videos")
 	
 	if err := os.MkdirAll(imagesDir, 0755); err != nil {
-		http.Error(w, "Failed to create project directory: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to create images directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.MkdirAll(videosDir, 0755); err != nil {
+		http.Error(w, "Failed to create videos directory: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Save character art images
-	savedImages := []struct {
-		Index    int    `json:"index"`
-		Filename string `json:"filename"`
-		Path     string `json:"path"`
-	}{}
+	imageCount := 0
+	videoCount := 0
 
-	for _, art := range req.CharacterArt {
-		if art.ImageURL == "" {
+	// Save character art images
+	for i, art := range req.CharacterArt {
+		imageURL, ok := art["imageUrl"].(string)
+		if !ok || imageURL == "" {
 			continue
 		}
 
-		filename := fmt.Sprintf("character_%d.png", art.Index)
-		filepath := filepath.Join(imagesDir, filename)
+		index := i + 1
+		if idx, ok := art["index"].(float64); ok {
+			index = int(idx)
+		}
 
-		// Handle base64 data URLs
-		if strings.HasPrefix(art.ImageURL, "data:image") {
-			if err := saveBase64Image(art.ImageURL, filepath); err != nil {
-				slog.Warn("failed to save image", "error", err, "index", art.Index)
+		filename := fmt.Sprintf("character_%d.png", index)
+		imagePath := filepath.Join(imagesDir, filename)
+
+		if strings.HasPrefix(imageURL, "data:image") {
+			if err := saveBase64Image(imageURL, imagePath); err != nil {
+				slog.Warn("failed to save character image", "error", err, "index", index)
 				continue
 			}
-		} else {
-			// For URLs, just save the reference (or download in production)
-			// For now, skip non-base64 images
+			// Update the art entry with the filename (not the data URL)
+			req.CharacterArt[i]["imageFile"] = filename
+			imageCount++
+		}
+	}
+
+	// Save scene images
+	for i, scene := range req.Scenes {
+		imageURL, ok := scene["imageUrl"].(string)
+		if !ok || imageURL == "" {
 			continue
 		}
 
-		savedImages = append(savedImages, struct {
-			Index    int    `json:"index"`
-			Filename string `json:"filename"`
-			Path     string `json:"path"`
-		}{
-			Index:    art.Index,
-			Filename: filename,
-			Path:     filepath,
-		})
+		filename := fmt.Sprintf("scene_%d.png", i+1)
+		imagePath := filepath.Join(imagesDir, filename)
+
+		if strings.HasPrefix(imageURL, "data:image") {
+			if err := saveBase64Image(imageURL, imagePath); err != nil {
+				slog.Warn("failed to save scene image", "error", err, "scene", i+1)
+				continue
+			}
+			// Update the scene entry with the filename
+			req.Scenes[i]["imageFile"] = filename
+			imageCount++
+		}
 	}
 
-	// Create project JSON
-	project := map[string]any{
-		"id":            projectID,
+	// Build project data for JSON (without base64 data URLs)
+	projectData := map[string]any{
 		"storyPrompt":   req.StoryPrompt,
 		"characters":    req.Characters,
-		"characterArt":  req.CharacterArt,
+		"characterArt":  cleanImageURLs(req.CharacterArt),
 		"keyframes":     req.Keyframes,
+		"scenes":        cleanImageURLs(req.Scenes),
 		"shotSequence":  req.ShotSequence,
 		"imageProvider": req.ImageProvider,
-		"savedAt":       req.SavedAt,
-		"savedImages":   savedImages,
+		"settings":      req.Settings,
+		"savedAt":       time.Now().Format(time.RFC3339),
 	}
 
-	// Save JSON file
-	jsonPath := filepath.Join(projectDir, "project.json")
-	jsonData, err := json.MarshalIndent(project, "", "  ")
+	// Save project.json
+	jsonPath := filepath.Join(projectPath, "project.json")
+	jsonData, err := json.MarshalIndent(projectData, "", "  ")
 	if err != nil {
-		http.Error(w, "Failed to create project JSON", http.StatusInternalServerError)
+		http.Error(w, "Failed to create project JSON: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := os.WriteFile(jsonPath, jsonData, 0644); err != nil {
-		http.Error(w, "Failed to save project file", http.StatusInternalServerError)
+		http.Error(w, "Failed to save project file: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"projectId":   projectID,
-		"projectDir":  projectDir,
-		"imagePath":   imagesDir,
-		"jsonPath":    jsonPath,
-		"savedImages": savedImages,
+		"projectPath": projectPath,
+		"imageCount":  imageCount,
+		"videoCount":  videoCount,
 	})
+}
+
+// cleanImageURLs removes base64 data URLs from items, keeping only imageFile references
+func cleanImageURLs(items []map[string]any) []map[string]any {
+	result := make([]map[string]any, len(items))
+	for i, item := range items {
+		clean := make(map[string]any)
+		for k, v := range item {
+			// Skip base64 data URLs, keep everything else
+			if k == "imageUrl" {
+				if str, ok := v.(string); ok && strings.HasPrefix(str, "data:") {
+					continue
+				}
+			}
+			clean[k] = v
+		}
+		result[i] = clean
+	}
+	return result
 }
 
 // Load project from disk
 func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
-	basePath := r.URL.Query().Get("path")
-	projectID := r.URL.Query().Get("id")
+	projectPath := r.URL.Query().Get("path")
 	
-	if basePath == "" || projectID == "" {
-		http.Error(w, "Missing path or id parameter", http.StatusBadRequest)
+	if projectPath == "" {
+		http.Error(w, "Missing path parameter", http.StatusBadRequest)
 		return
 	}
 	
-	projectDir := filepath.Join(basePath, projectID)
-	jsonPath := filepath.Join(projectDir, "project.json")
+	jsonPath := filepath.Join(projectPath, "project.json")
+	imagesDir := filepath.Join(projectPath, "images")
 	
 	// Read project JSON
 	jsonData, err := os.ReadFile(jsonPath)
@@ -435,65 +456,75 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Load images from disk and convert to base64
-	imagesDir := filepath.Join(projectDir, "images")
+	// Load character art images from disk and convert to base64
 	if characterArt, ok := project["characterArt"].([]any); ok {
 		for i, art := range characterArt {
 			if artMap, ok := art.(map[string]any); ok {
-				index := int(artMap["index"].(float64))
-				imgPath := filepath.Join(imagesDir, fmt.Sprintf("character_%d.png", index))
+				// Try to load image by imageFile first, then by index
+				var imgPath string
+				if imageFile, ok := artMap["imageFile"].(string); ok && imageFile != "" {
+					imgPath = filepath.Join(imagesDir, imageFile)
+				} else if idx, ok := artMap["index"].(float64); ok {
+					imgPath = filepath.Join(imagesDir, fmt.Sprintf("character_%d.png", int(idx)))
+				}
 				
-				if imgData, err := os.ReadFile(imgPath); err == nil {
-					base64Data := base64.StdEncoding.EncodeToString(imgData)
-					artMap["imageUrl"] = "data:image/png;base64," + base64Data
-					characterArt[i] = artMap
+				if imgPath != "" {
+					if imgData, err := os.ReadFile(imgPath); err == nil {
+						mimeType := detectMimeType(imgPath)
+						base64Data := base64.StdEncoding.EncodeToString(imgData)
+						artMap["imageUrl"] = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
+						characterArt[i] = artMap
+					}
 				}
 			}
 		}
 		project["characterArt"] = characterArt
 	}
 	
+	// Load scene images from disk and convert to base64
+	if scenes, ok := project["scenes"].([]any); ok {
+		for i, scene := range scenes {
+			if sceneMap, ok := scene.(map[string]any); ok {
+				// Try to load image by imageFile first, then by index
+				var imgPath string
+				if imageFile, ok := sceneMap["imageFile"].(string); ok && imageFile != "" {
+					imgPath = filepath.Join(imagesDir, imageFile)
+				} else {
+					imgPath = filepath.Join(imagesDir, fmt.Sprintf("scene_%d.png", i+1))
+				}
+				
+				if imgPath != "" {
+					if imgData, err := os.ReadFile(imgPath); err == nil {
+						mimeType := detectMimeType(imgPath)
+						base64Data := base64.StdEncoding.EncodeToString(imgData)
+						sceneMap["imageUrl"] = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
+						scenes[i] = sceneMap
+					}
+				}
+			}
+		}
+		project["scenes"] = scenes
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(project)
 }
 
-// Load project images from disk
-func (s *Server) HandleLoadProjectImages(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ProjectDir  string `json:"projectDir"`
-		SavedImages []struct {
-			Index    int    `json:"index"`
-			Filename string `json:"filename"`
-			Path     string `json:"path"`
-		} `json:"savedImages"`
+// detectMimeType returns the MIME type based on file extension
+func detectMimeType(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "image/png"
 	}
-	
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-	
-	images := []map[string]any{}
-	
-	for _, img := range req.SavedImages {
-		imgPath := img.Path
-		if imgPath == "" {
-			imgPath = filepath.Join(req.ProjectDir, "images", img.Filename)
-		}
-		
-		if imgData, err := os.ReadFile(imgPath); err == nil {
-			base64Data := base64.StdEncoding.EncodeToString(imgData)
-			images = append(images, map[string]any{
-				"index":    img.Index,
-				"imageUrl": "data:image/png;base64," + base64Data,
-			})
-		}
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"images": images,
-	})
 }
 
 func saveBase64Image(dataURL, filepath string) error {
@@ -646,7 +677,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
-	mux.HandleFunc("POST /api/load-project-images", s.HandleLoadProjectImages)
+
 	
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
