@@ -55,6 +55,33 @@
                         <span>+</span> Add Character
                     </button>
                 </div>
+
+                <!-- Character Art -->
+                <div class="prompt-section">
+                    <div class="section-header">
+                        <h2>🎨 Character Art</h2>
+                        <div class="provider-select">
+                            <select id="imageProvider">
+                                <option value="nanobananopro">Nano Banana Pro</option>
+                                <option value="midjourney">Midjourney</option>
+                                <option value="dalle">DALL-E 3</option>
+                                <option value="stability">Stable Diffusion</option>
+                                <option value="leonardo">Leonardo AI</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="characterArtGrid" class="character-art-grid">
+                        <div class="art-placeholder">
+                            <span class="placeholder-icon">🖼️</span>
+                            <span>Character art will appear here</span>
+                            <span class="placeholder-hint">Add character prompts and click "Generate Art"</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-generate-art" id="generateArtBtn">
+                        <span class="btn-text">✨ Generate Character Art</span>
+                        <span class="btn-loading" style="display: none;">Generating...</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Right Column: Keyframes -->
@@ -131,6 +158,7 @@
             `;
             characterContainer.appendChild(card);
             characterCount++;
+            renumberCharacters();
             updateRemoveButtons();
         });
 
@@ -209,6 +237,103 @@
 
         // Initial state
         updateRemoveButtons();
+
+        // Character art generation
+        document.getElementById('generateArtBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('generateArtBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            const artGrid = document.getElementById('characterArtGrid');
+            const provider = document.getElementById('imageProvider').value;
+
+            // Gather character prompts
+            const characters = [];
+            document.querySelectorAll('.character-card').forEach((card, index) => {
+                const description = card.querySelector('.character-description').value.trim();
+                if (description) {
+                    characters.push({ index: index + 1, description });
+                }
+            });
+
+            if (characters.length === 0) {
+                alert('Please add at least one character prompt');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+
+            // Show loading state in grid
+            artGrid.innerHTML = characters.map(c => `
+                <div class="art-card loading" data-character="${c.index}">
+                    <div class="art-image-container">
+                        <div class="art-loading-spinner"></div>
+                    </div>
+                    <div class="art-label">Character ${c.index}</div>
+                </div>
+            `).join('');
+
+            try {
+                const response = await fetch('/api/generate-character-art', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ characters, provider })
+                });
+
+                if (!response.ok) throw new Error('Failed to generate art');
+
+                const data = await response.json();
+                
+                // Update grid with results
+                artGrid.innerHTML = data.results.map(r => `
+                    <div class="art-card" data-character="${r.index}">
+                        <div class="art-image-container">
+                            <img src="${r.imageUrl}" alt="Character ${r.index}">
+                            <div class="art-overlay">
+                                <button class="btn-icon" onclick="regenerateCharacter(${r.index})" title="Regenerate">🔄</button>
+                                <button class="btn-icon" onclick="downloadImage('${r.imageUrl}')" title="Download">⬇️</button>
+                            </div>
+                        </div>
+                        <div class="art-label">Character ${r.index}</div>
+                        <div class="art-provider">${getProviderName(data.provider)}</div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                alert('Error generating art: ' + err.message);
+                artGrid.innerHTML = `
+                    <div class="art-placeholder error">
+                        <span class="placeholder-icon">⚠️</span>
+                        <span>Failed to generate art</span>
+                        <span class="placeholder-hint">${err.message}</span>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+
+        function getProviderName(provider) {
+            const names = {
+                'nanobananopro': 'Nano Banana Pro',
+                'midjourney': 'Midjourney',
+                'dalle': 'DALL-E 3',
+                'stability': 'Stable Diffusion',
+                'leonardo': 'Leonardo AI'
+            };
+            return names[provider] || provider;
+        }
+
+        function regenerateCharacter(index) {
+            alert(`Regenerate character ${index} - coming soon!`);
+        }
+
+        function downloadImage(url) {
+            window.open(url, '_blank');
+        }
 
         // Form submission
         document.getElementById('submitBtn').addEventListener('click', async () => {

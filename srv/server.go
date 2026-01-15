@@ -145,6 +145,65 @@ func (s *Server) HandleGetProject(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(project)
 }
 
+type CharacterArtRequest struct {
+	Characters []struct {
+		Index       int    `json:"index"`
+		Description string `json:"description"`
+	} `json:"characters"`
+	Provider string `json:"provider"`
+}
+
+type CharacterArtResult struct {
+	Index    int    `json:"index"`
+	ImageURL string `json:"imageUrl"`
+	Prompt   string `json:"prompt"`
+}
+
+func (s *Server) HandleGenerateCharacterArt(w http.ResponseWriter, r *http.Request) {
+	var req CharacterArtRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Generate art for each character
+	// For now, use placeholder images - will integrate real providers later
+	results := make([]CharacterArtResult, len(req.Characters))
+	colors := []string{"6366f1", "8b5cf6", "ec4899", "f43f5e", "f97316", "eab308", "22c55e", "14b8a6"}
+	
+	for i, char := range req.Characters {
+		colorIdx := (char.Index - 1) % len(colors)
+		// In production, this would call the actual image generation API
+		imageURL := generateCharacterImage(char.Description, req.Provider, colors[colorIdx])
+		results[i] = CharacterArtResult{
+			Index:    char.Index,
+			ImageURL: imageURL,
+			Prompt:   char.Description,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"results":  results,
+		"provider": req.Provider,
+	})
+}
+
+func generateCharacterImage(prompt, provider, color string) string {
+	// TODO: Integrate actual image generation APIs
+	// For now, return placeholder
+	// 
+	// Provider integration points:
+	// - nanobananopro: Call Nano Banana Pro API
+	// - midjourney: Call Midjourney API (via Discord or third-party)
+	// - dalle: Call OpenAI DALL-E 3 API
+	// - stability: Call Stability AI API
+	// - leonardo: Call Leonardo AI API
+	
+	// Placeholder with character number extracted from context
+	return fmt.Sprintf("https://placehold.co/512x512/%s/ffffff?text=Character+Art", color)
+}
+
 func generateScenesFromKeyframes(keyframes []Keyframe, storyPrompt string) []Scene {
 	colors := []string{"1a1a2e", "16213e", "0f3460", "533483", "e94560", "2d4059", "3d5a80", "5c4d7d"}
 	
@@ -242,6 +301,7 @@ func (s *Server) Serve(addr string) error {
 	// API
 	mux.HandleFunc("POST /api/projects", s.HandleCreateProject)
 	mux.HandleFunc("GET /api/projects/{id}", s.HandleGetProject)
+	mux.HandleFunc("POST /api/generate-character-art", s.HandleGenerateCharacterArt)
 	
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
