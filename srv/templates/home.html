@@ -1490,38 +1490,33 @@ Story context: ${storyContext}`;
             }
 
             const projectData = gatherProjectData();
-            
-            // Include storyboard scenes if they exist
-            if (currentStoryboard && currentStoryboard.scenes) {
-                projectData.scenes = currentStoryboard.scenes;
-            }
-            
-            // Also gather any scene images from the DOM as a fallback
+            // Gather scenes from DOM - this is the most reliable source of current images
             const sceneCards = document.querySelectorAll('.storyboard-card');
-            if (sceneCards.length > 0 && (!projectData.scenes || projectData.scenes.length === 0)) {
+            if (sceneCards.length > 0) {
                 projectData.scenes = [];
                 sceneCards.forEach((card, index) => {
                     const img = card.querySelector('.card-image img');
                     const narration = card.querySelector('.scene-narration')?.textContent || '';
+                    
+                    // Get existing scene data from currentStoryboard if available
+                    const existingScene = currentStoryboard?.scenes?.[index] || {};
+                    
                     projectData.scenes.push({
-                        id: `scene_${index + 1}`,
-                        narration: narration,
-                        imageUrl: img?.src || null
+                        id: existingScene.id || `scene_${index + 1}`,
+                        narration: narration || existingScene.narration || '',
+                        imagePrompt: existingScene.imagePrompt || '',
+                        imageUrl: img?.src || existingScene.imageUrl || null,
+                        status: existingScene.status || 'complete'
                     });
+                    
+                    console.log(`Scene ${index + 1} image:`, img?.src ? (img.src.substring(0, 50) + '...') : 'none');
                 });
+            } else if (currentStoryboard && currentStoryboard.scenes) {
+                // Fallback to currentStoryboard if no DOM elements
+                projectData.scenes = JSON.parse(JSON.stringify(currentStoryboard.scenes));
             }
             
-            // Sync scene images from DOM to projectData (in case they were updated)
-            if (projectData.scenes) {
-                sceneCards.forEach((card, index) => {
-                    if (projectData.scenes[index]) {
-                        const img = card.querySelector('.card-image img');
-                        if (img && img.src && img.src.startsWith('data:')) {
-                            projectData.scenes[index].imageUrl = img.src;
-                        }
-                    }
-                });
-            }
+            console.log('Scenes to save:', projectData.scenes?.length || 0);
             
             projectData.projectPath = PROJECT_PATH;
             projectData.settings = PROJECT_SETTINGS;
@@ -1581,20 +1576,25 @@ Story context: ${storyContext}`;
 
                 // Save scene images
                 if (imagesDir && projectData.scenes) {
+                    console.log(`Saving ${projectData.scenes.length} scene images...`);
                     for (let i = 0; i < projectData.scenes.length; i++) {
                         const scene = projectData.scenes[i];
+                        console.log(`Scene ${i + 1} imageUrl:`, scene.imageUrl ? scene.imageUrl.substring(0, 60) + '...' : 'none');
+                        
                         if (scene.imageUrl) {
                             if (scene.imageUrl.startsWith('data:')) {
                                 // Save base64 image
                                 const filename = `scene_${i + 1}.png`;
+                                console.log(`Saving scene ${i + 1} as ${filename}`);
                                 await saveBase64ToFile(imagesDir, filename, scene.imageUrl);
                                 projectData.scenes[i].imageFile = filename;
                                 delete projectData.scenes[i].imageUrl;
                                 imageCount++;
-                            } else if (scene.imageUrl.startsWith('http')) {
-                                // Try to fetch and save external URL
+                            } else if (scene.imageUrl.startsWith('http') && !scene.imageUrl.includes('placehold')) {
+                                // Try to fetch and save external URL (skip placeholders)
                                 try {
                                     const filename = `scene_${i + 1}.png`;
+                                    console.log(`Fetching and saving scene ${i + 1} from URL as ${filename}`);
                                     await saveImageFromUrl(imagesDir, filename, scene.imageUrl);
                                     projectData.scenes[i].imageFile = filename;
                                     delete projectData.scenes[i].imageUrl;
@@ -1603,9 +1603,15 @@ Story context: ${storyContext}`;
                                     console.warn(`Could not save external image: ${scene.imageUrl}`, e);
                                     // Keep the URL in the JSON as fallback
                                 }
+                            } else {
+                                console.log(`Skipping scene ${i + 1} - placeholder or invalid URL`);
                             }
+                        } else {
+                            console.log(`Scene ${i + 1} has no imageUrl`);
                         }
                     }
+                } else {
+                    console.log('No imagesDir or no scenes to save');
                 }
 
                 // Save project.json
