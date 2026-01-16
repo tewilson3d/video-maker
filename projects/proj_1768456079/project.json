@@ -1,0 +1,108 @@
+{
+  "characterArt": [
+    {
+      "index": 1,
+      "imageUrl": "https://placehold.co/512x512/6366f1/ffffff?text=Character+Art",
+      "isLocal": false
+    },
+    {
+      "index": 2,
+      "imageUrl": "https://placehold.co/512x512/8b5cf6/ffffff?text=Character+Art",
+      "isLocal": false
+    },
+    {
+      "index": 3,
+      "imageUrl": "https://placehold.co/512x512/ec4899/ffffff?text=Character+Art",
+      "isLocal": false
+    },
+    {
+      "index": 4,
+      "imageUrl": "https://placehold.co/512x512/f43f5e/ffffff?text=Character+Art",
+      "isLocal": false
+    },
+    {
+      "index": 5,
+      "imageUrl": "https://placehold.co/512x512/f97316/ffffff?text=Character+Art",
+      "isLocal": false
+    },
+    {
+      "index": 6,
+      "imageUrl": "https://placehold.co/512x512/eab308/ffffff?text=Character+Art",
+      "isLocal": false
+    }
+  ],
+  "characters": [
+    {
+      "index": 1,
+      "description": "A near-future human infantry soldier wearing a biomechanical combat suit, face partially visible through a transparent armored visor, male, early 30s, exhausted but emotionally flat expression, subtle scars and grime, realistic military posture, standing in ruined battlefield environment, muted color palette, overcast lighting, ultra-detailed, photorealistic, cinematic realism"
+    },
+    {
+      "index": 2,
+      "description": "A living biomechanical combat suit fused seamlessly to a human body, organic fibers interwoven with synthetic armor plates, subtle muscle-like structures beneath translucent armor, self-healing tissue closing small wounds, minimal glowing indicators, clinical medical aesthetic, no decorative elements, functional military design, photorealistic sci-fi, unsettling but restrained, cinematic lighting"
+    },
+    {
+      "index": 3,
+      "description": "Extreme close-up of biomechanical combat suit surface, organic fibers knitting together over damaged tissue, micro-tendons contracting, synthetic muscle merging with human skin, clinical biotech appearance, no blood spray, precise and controlled repair, photorealistic macro detail, unsettling realism"
+    },
+    {
+      "index": 4,
+      "description": "Interior view from inside a transparent combat visor, minimalistic tactical HUD overlays, small clinical text and symbols, stress regulation indicators, threat outlines faintly visible, no flashy UI, subdued colors, realistic optical distortion, immersive first-person perspective"
+    },
+    {
+      "index": 5,
+      "description": "Alien biological infantry creature with asymmetrical anatomy, hardened organic armor plates, functional limbs built for close combat, no expressive face, utilitarian evolution, battlefield context, grounded sci-fi realism, subdued colors, cinematic lighting"
+    },
+    {
+      "index": 6,
+      "description": "Distant alien combat silhouettes emerging through smoke and debris, unclear anatomy, movement-focused forms, partially obscured by haze, threatening but indistinct, realistic war photography style, shallow depth of field"
+    }
+  ],
+  "id": "proj_1768456079",
+  "imageProvider": "nanobananopro",
+  "keyframes": [
+    {
+      "index": 1,
+      "description": "Shot 01: Interior visor view activates in darkness, minimal clinical HUD flicker, audio dampened, controlled breathing audible, cold and restrained tone."
+    },
+    {
+      "index": 2,
+      "description": "Shot 02: Full-body view of a human soldier advancing through ruined battlefield terrain, living biomechanical suit fused to body, movement unnaturally smooth and efficient, muted color palette, overcast lighting."
+    },
+    {
+      "index": 3,
+      "description": "Shot 03: Distant alien enemy silhouettes emerge suddenly through smoke and debris, indistinct anatomy, threat detected before visual focus, no dramatic emphasis."
+    },
+    {
+      "index": 4,
+      "description": "Shot 04: Soldier engages in combat with abrupt precision, weapon fires automatically, reload completes without conscious action, camera cuts feel optimized rather than cinematic."
+    },
+    {
+      "index": 5,
+      "description": "Shot 05: Close-range melee strike executed with mechanical efficiency, suit-assisted movement overrides natural human motion, no hesitation or emotional reaction."
+    },
+    {
+      "index": 6,
+      "description": "Shot 06: Soldier takes a hit mid-action, impact muted, biomechanical fibers immediately seal the wound, organic material knitting seamlessly, no slowdown in movement."
+    },
+    {
+      "index": 7,
+      "description": "Shot 07: Soldier begins to aim toward one target, suit subtly redirects body toward a higher-priority threat, brief micro-hesitation followed by compliance."
+    },
+    {
+      "index": 8,
+      "description": "Shot 08: Nearby allied soldier is killed abruptly, body falls out of frame without focus or slow motion, protagonist continues forward without stopping."
+    },
+    {
+      "index": 9,
+      "description": "Shot 09: Interior visor HUD displays clinical status text such as “stress regulated” and “efficiency optimal,” visuals remain minimal and medical, no dramatic UI."
+    },
+    {
+      "index": 10,
+      "description": "Shot 10: Combat noise fades, battlefield settles into smoke and stillness, soldier stands momentarily motionless, suit hum steady and dominant, human breath barely audible."
+    }
+  ],
+  "savedAt": "2026-01-15T05:47:59.033Z",
+  "savedImages": [],
+  "shotSequence": "Shot 01: Interior visor view activates in darkness, minimal clinical HUD flicker, audio dampened, controlled breathing audible, cold and restrained tone.\n\nShot 02: Full-body view of a human soldier advancing through ruined battlefield terrain, living biomechanical suit fused to body, movement unnaturally smooth and efficient, muted color palette, overcast lighting.\n\nShot 03: Distant alien enemy silhouettes emerge suddenly through smoke and debris, indistinct anatomy, threat detected before visual focus, no dramatic emphasis.\n\nShot 04: Soldier engages in combat with abrupt precision, weapon fires automatically, reload completes without conscious action, camera cuts feel optimized rather than cinematic.\n\nShot 05: Close-range melee strike executed with mechanical efficiency, suit-assisted movement overrides natural human motion, no hesitation or emotional reaction.\n\nShot 06: Soldier takes a hit mid-action, impact muted, biomechanical fibers immediately seal the wound, organic material knitting seamlessly, no slowdown in movement.\n\nShot 07: Soldier begins to aim toward one target, suit subtly redirects body toward a higher-priority threat, brief micro-hesitation followed by compliance.\n\nShot 08: Nearby allied soldier is killed abruptly, body falls out of frame without focus or slow motion, protagonist continues forward without stopping.\n\nShot 09: Interior visor HUD displays clinical status text such as “stress regulated” and “efficiency optimal,” visuals remain minimal and medical, no dramatic UI.\n\nShot 10: Combat noise fades, battlefield settles into smoke and stillness, soldier stands momentarily motionless, suit hum steady and dominant, human breath barely audible.",
+  "storyPrompt": "A near-future battlefield during an ongoing interstellar war. The environment is ruined and industrial, reduced to debris, smoke, and broken terrain. Visibility is low, the color palette muted and cold. \n\nThe story follows a single human infantry soldier wearing a living biomechanical combat suit. The suit is not armor in the traditional sense — it is a biological system fused to the body, quietly monitoring, regulating, and optimizing the wearer. The soldier believes the suit is protecting him.\n\nCombat unfolds with sudden efficiency. Enemy contact is abrupt and unspectacular. The soldier moves with unnatural precision, reacting faster than conscious thought. Weapons fire, reloads, and evasive maneuvers occur automatically, guided by the suit. There is no heroism, no panic — only controlled execution.\n\nDuring the fight, the soldier is injured. The wound is sealed instantly by the suit’s organic fibers. Pain is muted, treated as information rather than sensation. The soldier does not slow down. The battle continues uninterrupted.\n\nAt key moments, the suit overrides the soldier’s intent — redirecting movement, prioritizing targets, choosing survival paths. The soldier briefly registers this loss of control but accepts it without resistance. The suit knows better.\n\nNearby, another soldier is killed. The death happens quickly and without emphasis, absorbed into the background of combat. The protagonist does not stop or react. Mission continuity outweighs human loss.\n\nAs the fighting subsides, the battlefield noise fades. The suit remains active, calm, and dominant. Internal systems confirm optimal efficiency and regulated stress. The human presence is quieter now — reduced to breath and compliance.\n\nThe tone is restrained, clinical, and unsettling. The horror is not violence, but the quiet realization that the suit is becoming the primary actor, and the human is becoming incidental. The scene ends in calm, not chaos — with the sense that the system will endure, regardless of the individual inside it."
+}

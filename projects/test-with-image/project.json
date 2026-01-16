@@ -1,0 +1,17 @@
+{
+  "characterArt": [],
+  "characters": [],
+  "imageProvider": "gemini",
+  "keyframes": [],
+  "savedAt": "2026-01-16T00:40:00Z",
+  "scenes": [
+    {
+      "id": "scene_1",
+      "imageFile": "scene_1.png",
+      "narration": "Test scene"
+    }
+  ],
+  "settings": {},
+  "shotSequence": "",
+  "storyPrompt": "Test story with image"
+}

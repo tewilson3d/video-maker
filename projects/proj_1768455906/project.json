@@ -1,0 +1,36 @@
+{
+  "characterArt": [],
+  "characters": [
+    {
+      "index": 1,
+      "description": "A near-future human infantry soldier wearing a biomechanical combat suit, face partially visible through a transparent armored visor, male, early 30s, exhausted but emotionally flat expression, subtle scars and grime, realistic military posture, standing in ruined battlefield environment, muted color palette, overcast lighting, ultra-detailed, photorealistic, cinematic realism"
+    },
+    {
+      "index": 2,
+      "description": "A living biomechanical combat suit fused seamlessly to a human body, organic fibers interwoven with synthetic armor plates, subtle muscle-like structures beneath translucent armor, self-healing tissue closing small wounds, minimal glowing indicators, clinical medical aesthetic, no decorative elements, functional military design, photorealistic sci-fi, unsettling but restrained, cinematic lighting"
+    },
+    {
+      "index": 3,
+      "description": "Extreme close-up of biomechanical combat suit surface, organic fibers knitting together over damaged tissue, micro-tendons contracting, synthetic muscle merging with human skin, clinical biotech appearance, no blood spray, precise and controlled repair, photorealistic macro detail, unsettling realism"
+    },
+    {
+      "index": 4,
+      "description": "Interior view from inside a transparent combat visor, minimalistic tactical HUD overlays, small clinical text and symbols, stress regulation indicators, threat outlines faintly visible, no flashy UI, subdued colors, realistic optical distortion, immersive first-person perspective"
+    },
+    {
+      "index": 5,
+      "description": "Alien biological infantry creature with asymmetrical anatomy, hardened organic armor plates, functional limbs built for close combat, no expressive face, utilitarian evolution, battlefield context, grounded sci-fi realism, subdued colors, cinematic lighting"
+    },
+    {
+      "index": 6,
+      "description": "Distant alien combat silhouettes emerging through smoke and debris, unclear anatomy, movement-focused forms, partially obscured by haze, threatening but indistinct, realistic war photography style, shallow depth of field"
+    }
+  ],
+  "id": "proj_1768455906",
+  "imageProvider": "nanobananopro",
+  "keyframes": [],
+  "savedAt": "2026-01-15T05:45:05.998Z",
+  "savedImages": [],
+  "shotSequence": "SHOT 01 — Suit Awakening (0–5s)\n\nAsset: Visor / HUD Interior\n\nMotion: HUD flicker, audio dampening\n\nEmotion: clinical calm\n\nPurpose: establish suit-first POV\n\nSHOT 02 — Advance (5–12s)\n\nAsset: Human Soldier + Livesuit (full body)\n\nMotion: controlled forward movement\n\nCamera: slightly stabilized, unnatural smoothness\n\nPurpose: competence without heroism\n\nSHOT 03 — Enemy Contact (12–18s)\n\nAsset: Enemy Type B silhouettes\n\nMotion: sudden appearance, no buildup\n\nCamera: tight, efficient cuts\n\nPurpose: threat appears as data, not drama\n\nSHOT 04 — Battle Execution (18–22s)\n\nAsset: Soldier firing / melee\n\nMotion: weapon fires before visible intent\n\nDetail: reloads happen automatically\n\nPurpose: suit-driven combat\n\nSHOT 05 — Injury \u0026 Repair (22–30s)\n\nAsset: Livesuit close-up\n\nMotion: wound seals mid-movement\n\nAudio: muted impact\n\nPurpose: pain → data\n\nSHOT 06 — Suit Override (30–38s)\n\nAsset: Soldier mid-aim\n\nMotion: body redirected by suit\n\nMicro-beat: half-second resistance\n\nPurpose: loss of agency\n\nSHOT 07 — Casual Death (38–46s)\n\nAsset: Fellow soldier killed\n\nFraming: out of focus, background\n\nReaction: protagonist does not stop\n\nPurpose: emotional flattening\n\nSHOT 08 — Rationalization (46–55s)\n\nAsset: Visor HUD\n\nText overlays:\n\n“Stress regulated”\n\n“Efficiency optimal”\n\nPurpose: system validation\n\nSHOT 09 — Quiet Button (55–60s)\n\nAsset: Soldier standing still\n\nAudio: suit hum \u003e breathing\n\nEnd frame: human presence diminished\n\nPurpose: existential unease",
+  "storyPrompt": "A near-future battlefield during an ongoing interstellar war. The environment is ruined and industrial, reduced to debris, smoke, and broken terrain. Visibility is low, the color palette muted and cold. \n\nThe story follows a single human infantry soldier wearing a living biomechanical combat suit. The suit is not armor in the traditional sense — it is a biological system fused to the body, quietly monitoring, regulating, and optimizing the wearer. The soldier believes the suit is protecting him.\n\nCombat unfolds with sudden efficiency. Enemy contact is abrupt and unspectacular. The soldier moves with unnatural precision, reacting faster than conscious thought. Weapons fire, reloads, and evasive maneuvers occur automatically, guided by the suit. There is no heroism, no panic — only controlled execution.\n\nDuring the fight, the soldier is injured. The wound is sealed instantly by the suit’s organic fibers. Pain is muted, treated as information rather than sensation. The soldier does not slow down. The battle continues uninterrupted.\n\nAt key moments, the suit overrides the soldier’s intent — redirecting movement, prioritizing targets, choosing survival paths. The soldier briefly registers this loss of control but accepts it without resistance. The suit knows better.\n\nNearby, another soldier is killed. The death happens quickly and without emphasis, absorbed into the background of combat. The protagonist does not stop or react. Mission continuity outweighs human loss.\n\nAs the fighting subsides, the battlefield noise fades. The suit remains active, calm, and dominant. Internal systems confirm optimal efficiency and regulated stress. The human presence is quieter now — reduced to breath and compliance.\n\nThe tone is restrained, clinical, and unsettling. The horror is not violence, but the quiet realization that the suit is becoming the primary actor, and the human is becoming incidental. The scene ends in calm, not chaos — with the sense that the system will endure, regardless of the individual inside it."
+}

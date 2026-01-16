@@ -1,0 +1,18 @@
+{
+  "characterArt": [],
+  "characters": [],
+  "imageProvider": "gemini",
+  "keyframes": [],
+  "savedAt": "2026-01-15T22:27:40Z",
+  "scenes": [],
+  "settings": {
+    "clipDuration": "5",
+    "frameRate": "30",
+    "imageAspectRatio": "16:9",
+    "imageResolution": "1024",
+    "projectPath": "/home/exedev/video-maker/projects/my-new-project",
+    "videoAspectRatio": "16:9"
+  },
+  "shotSequence": "",
+  "storyPrompt": "A knight and dragon adventure story."
+}

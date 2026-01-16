@@ -1,0 +1,18 @@
+{
+  "characterArt": [],
+  "characters": [],
+  "imageProvider": "gemini",
+  "keyframes": [],
+  "savedAt": "2026-01-15T22:26:50Z",
+  "scenes": [],
+  "settings": {
+    "clipDuration": "5",
+    "frameRate": "30",
+    "imageAspectRatio": "16:9",
+    "imageResolution": "1024",
+    "projectPath": "/home/exedev/video-maker/projects",
+    "videoAspectRatio": "16:9"
+  },
+  "shotSequence": "",
+  "storyPrompt": "A test story about a knight."
+}
