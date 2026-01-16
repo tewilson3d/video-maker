@@ -1460,36 +1460,10 @@ Story context: ${storyContext}`;
             input.click();
         }
 
-        // Save Project - save to local folder using File System Access API
+        // Save Project - save to server project path AND optionally to local folder
         document.getElementById('saveProjectBtn').addEventListener('click', async () => {
-            // If no folder selected, prompt user to select one
-            if (!localDirectoryHandle) {
-                try {
-                    if (!('showDirectoryPicker' in window)) {
-                        showToast('Your browser does not support folder selection. Please use Chrome or Edge.', 'error');
-                        return;
-                    }
-                    
-                    localDirectoryHandle = await window.showDirectoryPicker({
-                        mode: 'readwrite',
-                        startIn: 'documents'
-                    });
-                    
-                    PROJECT_PATH = localDirectoryHandle.name;
-                    PROJECT_SETTINGS.projectPath = PROJECT_PATH;
-                    document.getElementById('projectPathInput').value = PROJECT_PATH;
-                    
-                } catch (err) {
-                    if (err.name === 'AbortError') {
-                        // User cancelled
-                        return;
-                    }
-                    showToast('Error selecting folder: ' + err.message, 'error');
-                    return;
-                }
-            }
-
             const projectData = gatherProjectData();
+            
             // Gather scenes from DOM - this is the most reliable source of current images
             const sceneCards = document.querySelectorAll('.storyboard-card');
             if (sceneCards.length > 0) {
@@ -1518,7 +1492,23 @@ Story context: ${storyContext}`;
             
             console.log('Scenes to save:', projectData.scenes?.length || 0);
             
-            projectData.projectPath = PROJECT_PATH;
+            // Get project path from settings
+            let projectPath = PROJECT_SETTINGS.projectPath || PROJECT_PATH;
+            
+            // If no project path set, prompt user
+            if (!projectPath || projectPath === '/home/exedev/video-maker/projects') {
+                projectPath = prompt('Enter the project folder path:', '/home/exedev/video-maker/projects/my-project');
+                if (!projectPath) {
+                    showToast('Save cancelled - no project path specified', 'info');
+                    return;
+                }
+                PROJECT_PATH = projectPath;
+                PROJECT_SETTINGS.projectPath = projectPath;
+                document.getElementById('projectPathInput').value = projectPath;
+                localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
+            }
+            
+            projectData.projectPath = projectPath;
             projectData.settings = PROJECT_SETTINGS;
             projectData.savedAt = new Date().toISOString();
             
@@ -1528,99 +1518,48 @@ Story context: ${storyContext}`;
             btn.disabled = true;
             
             try {
-                // Create images directory
-                let imagesDir;
-                try {
-                    imagesDir = await localDirectoryHandle.getDirectoryHandle('images', { create: true });
-                } catch (e) {
-                    console.warn('Could not create images directory:', e);
-                }
-
-                // Create videos directory
-                try {
-                    await localDirectoryHandle.getDirectoryHandle('videos', { create: true });
-                } catch (e) {
-                    console.warn('Could not create videos directory:', e);
-                }
-
-                let imageCount = 0;
-
-                // Save character art images
-                if (imagesDir && projectData.characterArt) {
-                    for (let i = 0; i < projectData.characterArt.length; i++) {
-                        const art = projectData.characterArt[i];
-                        if (art.imageUrl) {
-                            if (art.imageUrl.startsWith('data:')) {
-                                // Save base64 image
-                                const filename = `character_${art.index || i + 1}.png`;
-                                await saveBase64ToFile(imagesDir, filename, art.imageUrl);
-                                projectData.characterArt[i].imageFile = filename;
-                                delete projectData.characterArt[i].imageUrl;
-                                imageCount++;
-                            } else if (art.imageUrl.startsWith('http')) {
-                                // Try to fetch and save external URL
-                                try {
-                                    const filename = `character_${art.index || i + 1}.png`;
-                                    await saveImageFromUrl(imagesDir, filename, art.imageUrl);
-                                    projectData.characterArt[i].imageFile = filename;
-                                    delete projectData.characterArt[i].imageUrl;
-                                    imageCount++;
-                                } catch (e) {
-                                    console.warn(`Could not save external image: ${art.imageUrl}`, e);
-                                    // Keep the URL in the JSON as fallback
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Save scene images
-                if (imagesDir && projectData.scenes) {
-                    console.log(`Saving ${projectData.scenes.length} scene images...`);
-                    for (let i = 0; i < projectData.scenes.length; i++) {
-                        const scene = projectData.scenes[i];
-                        console.log(`Scene ${i + 1} imageUrl:`, scene.imageUrl ? scene.imageUrl.substring(0, 60) + '...' : 'none');
-                        
-                        if (scene.imageUrl) {
-                            if (scene.imageUrl.startsWith('data:')) {
-                                // Save base64 image
-                                const filename = `scene_${i + 1}.png`;
-                                console.log(`Saving scene ${i + 1} as ${filename}`);
-                                await saveBase64ToFile(imagesDir, filename, scene.imageUrl);
-                                projectData.scenes[i].imageFile = filename;
-                                delete projectData.scenes[i].imageUrl;
-                                imageCount++;
-                            } else if (scene.imageUrl.startsWith('http') && !scene.imageUrl.includes('placehold')) {
-                                // Try to fetch and save external URL (skip placeholders)
-                                try {
-                                    const filename = `scene_${i + 1}.png`;
-                                    console.log(`Fetching and saving scene ${i + 1} from URL as ${filename}`);
-                                    await saveImageFromUrl(imagesDir, filename, scene.imageUrl);
-                                    projectData.scenes[i].imageFile = filename;
-                                    delete projectData.scenes[i].imageUrl;
-                                    imageCount++;
-                                } catch (e) {
-                                    console.warn(`Could not save external image: ${scene.imageUrl}`, e);
-                                    // Keep the URL in the JSON as fallback
-                                }
-                            } else {
-                                console.log(`Skipping scene ${i + 1} - placeholder or invalid URL`);
-                            }
-                        } else {
-                            console.log(`Scene ${i + 1} has no imageUrl`);
-                        }
-                    }
-                } else {
-                    console.log('No imagesDir or no scenes to save');
-                }
-
-                // Save project.json
-                const jsonFile = await localDirectoryHandle.getFileHandle('project.json', { create: true });
-                const writable = await jsonFile.createWritable();
-                await writable.write(JSON.stringify(projectData, null, 2));
-                await writable.close();
+                // Save to server (primary method - saves to server project path)
+                const serverSaveData = {
+                    projectPath: projectPath,
+                    storyPrompt: projectData.storyPrompt,
+                    characters: projectData.characters || [],
+                    characterArt: projectData.characterArt || [],
+                    keyframes: projectData.keyframes || [],
+                    scenes: projectData.scenes || [],
+                    shotSequence: projectData.shotSequence || '',
+                    imageProvider: projectData.imageProvider || 'gemini',
+                    settings: projectData.settings || {}
+                };
                 
-                showToast(`Project saved! ${imageCount} images saved to ${PROJECT_PATH}`, 'success');
+                console.log('Saving to server path:', projectPath);
+                console.log('Scenes with images:', serverSaveData.scenes?.filter(s => s.imageUrl).length || 0);
+                
+                const response = await fetch('/api/save-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(serverSaveData)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server save failed: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('Server save result:', result);
+                
+                showToast(`Project saved to ${projectPath}! ${result.imageCount || 0} images saved.`, 'success');
+                
+                // Also save to local folder if File System Access API is available and folder is selected
+                if (localDirectoryHandle) {
+                    try {
+                        await saveToLocalFolder(projectData);
+                        showToast('Also saved to local folder', 'success');
+                    } catch (localErr) {
+                        console.warn('Local save failed (server save succeeded):', localErr);
+                    }
+                }
+                
             } catch (err) {
                 console.error('Save error:', err);
                 showToast('Error saving project: ' + err.message, 'error');
@@ -1629,6 +1568,65 @@ Story context: ${storyContext}`;
                 btn.disabled = false;
             }
         });
+        
+        // Helper function to save to local folder using File System Access API
+        async function saveToLocalFolder(projectData) {
+            if (!localDirectoryHandle) return;
+            
+            // Create images directory
+            let imagesDir;
+            try {
+                imagesDir = await localDirectoryHandle.getDirectoryHandle('images', { create: true });
+            } catch (e) {
+                console.warn('Could not create images directory:', e);
+            }
+
+            // Create videos directory
+            try {
+                await localDirectoryHandle.getDirectoryHandle('videos', { create: true });
+            } catch (e) {
+                console.warn('Could not create videos directory:', e);
+            }
+
+            let imageCount = 0;
+            const localProjectData = JSON.parse(JSON.stringify(projectData));
+
+            // Save character art images
+            if (imagesDir && localProjectData.characterArt) {
+                for (let i = 0; i < localProjectData.characterArt.length; i++) {
+                    const art = localProjectData.characterArt[i];
+                    if (art.imageUrl && art.imageUrl.startsWith('data:')) {
+                        const filename = `character_${art.index || i + 1}.png`;
+                        await saveBase64ToFile(imagesDir, filename, art.imageUrl);
+                        localProjectData.characterArt[i].imageFile = filename;
+                        delete localProjectData.characterArt[i].imageUrl;
+                        imageCount++;
+                    }
+                }
+            }
+
+            // Save scene images
+            if (imagesDir && localProjectData.scenes) {
+                for (let i = 0; i < localProjectData.scenes.length; i++) {
+                    const scene = localProjectData.scenes[i];
+                    if (scene.imageUrl && scene.imageUrl.startsWith('data:')) {
+                        const filename = `scene_${i + 1}.png`;
+                        await saveBase64ToFile(imagesDir, filename, scene.imageUrl);
+                        localProjectData.scenes[i].imageFile = filename;
+                        delete localProjectData.scenes[i].imageUrl;
+                        imageCount++;
+                    }
+                }
+            }
+
+            // Save project.json
+            const jsonFile = await localDirectoryHandle.getFileHandle('project.json', { create: true });
+            const writable = await jsonFile.createWritable();
+            await writable.write(JSON.stringify(localProjectData, null, 2));
+            await writable.close();
+            
+            return imageCount;
+        }
 
         // Helper function to save base64 data to a file
         // Helper function to save base64 data to a file
