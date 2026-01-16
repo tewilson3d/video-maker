@@ -2247,7 +2247,7 @@ Story context: ${storyContext}`;
         }
 
         // Update scene with generated image
-        function updateSceneImage(index, imageUrl) {
+        async function updateSceneImage(index, imageUrl) {
             const card = document.querySelector(`.storyboard-card[data-scene-index="${index}"]`);
             if (!card) return;
             
@@ -2267,6 +2267,54 @@ Story context: ${storyContext}`;
             // Update currentStoryboard
             if (currentStoryboard && currentStoryboard.scenes[index]) {
                 currentStoryboard.scenes[index].imageUrl = imageUrl;
+            }
+            
+            // Auto-save keyframe image to server
+            if (imageUrl && imageUrl.startsWith('data:')) {
+                await saveKeyframeToServer(index + 1, imageUrl);
+            }
+        }
+        
+        // Save a single keyframe image to the server immediately
+        async function saveKeyframeToServer(sceneIndex, imageData) {
+            // Get or prompt for project path
+            let projectPath = PROJECT_SETTINGS.projectPath || PROJECT_PATH;
+            
+            if (!projectPath || projectPath === '/home/exedev/video-maker/projects') {
+                // Auto-generate a project path based on timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                projectPath = `/home/exedev/video-maker/projects/project-${timestamp}`;
+                PROJECT_PATH = projectPath;
+                PROJECT_SETTINGS.projectPath = projectPath;
+                document.getElementById('projectPathInput').value = projectPath;
+                localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
+                console.log('Auto-created project path:', projectPath);
+            }
+            
+            try {
+                const response = await fetch('/api/save-keyframe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectPath: projectPath,
+                        sceneIndex: sceneIndex,
+                        imageData: imageData
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log(`Keyframe ${sceneIndex} saved:`, result.path);
+                    
+                    // Update scene with file reference
+                    if (currentStoryboard && currentStoryboard.scenes[sceneIndex - 1]) {
+                        currentStoryboard.scenes[sceneIndex - 1].imageFile = result.filename;
+                    }
+                } else {
+                    console.error(`Failed to save keyframe ${sceneIndex}:`, await response.text());
+                }
+            } catch (err) {
+                console.error(`Error saving keyframe ${sceneIndex}:`, err);
             }
         }
 

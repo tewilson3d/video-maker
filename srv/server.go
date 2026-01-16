@@ -216,6 +216,62 @@ func generateCharacterImage(prompt, provider, color string) string {
 	return fmt.Sprintf("https://placehold.co/512x512/%s/ffffff?text=Character+Art", color)
 }
 
+// Save individual keyframe image
+type SaveKeyframeRequest struct {
+	ProjectPath string `json:"projectPath"`
+	SceneIndex  int    `json:"sceneIndex"`
+	ImageData   string `json:"imageData"` // base64 data URL
+}
+
+func (s *Server) HandleSaveKeyframe(w http.ResponseWriter, r *http.Request) {
+	var req SaveKeyframeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.ProjectPath == "" {
+		http.Error(w, "Project path is required", http.StatusBadRequest)
+		return
+	}
+
+	if req.ImageData == "" {
+		http.Error(w, "Image data is required", http.StatusBadRequest)
+		return
+	}
+
+	// Create keyframes directory
+	keyframesDir := filepath.Join(req.ProjectPath, "keyframes")
+	if err := os.MkdirAll(keyframesDir, 0755); err != nil {
+		http.Error(w, "Failed to create keyframes directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Save the image
+	filename := fmt.Sprintf("scene_%d.png", req.SceneIndex)
+	imagePath := filepath.Join(keyframesDir, filename)
+
+	if strings.HasPrefix(req.ImageData, "data:image") {
+		if err := saveBase64Image(req.ImageData, imagePath); err != nil {
+			http.Error(w, "Failed to save image: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		http.Error(w, "Invalid image data format (expected base64 data URL)", http.StatusBadRequest)
+		return
+	}
+
+	slog.Info("saved keyframe", "path", imagePath, "scene", req.SceneIndex)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success":   true,
+		"filename":  filename,
+		"path":      imagePath,
+		"sceneIndex": req.SceneIndex,
+	})
+}
+
 // Video clip generation types
 type VideoClipRequest struct {
 	ProjectID string       `json:"projectId"`
@@ -357,7 +413,12 @@ func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Save scene images
+	// Save scene/keyframe images to keyframes directory
+	keyframesDir := filepath.Join(projectPath, "keyframes")
+	if err := os.MkdirAll(keyframesDir, 0755); err != nil {
+		slog.Warn("failed to create keyframes directory", "error", err)
+	}
+	
 	for i, scene := range req.Scenes {
 		imageURL, ok := scene["imageUrl"].(string)
 		if !ok || imageURL == "" {
@@ -365,7 +426,7 @@ func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 		}
 
 		filename := fmt.Sprintf("scene_%d.png", i+1)
-		imagePath := filepath.Join(imagesDir, filename)
+		imagePath := filepath.Join(keyframesDir, filename)
 
 		if strings.HasPrefix(imageURL, "data:image") {
 			if err := saveBase64Image(imageURL, imagePath); err != nil {
@@ -481,16 +542,26 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 		project["characterArt"] = characterArt
 	}
 	
-	// Load scene images from disk and convert to base64
+	// Load scene/keyframe images from disk and convert to base64
+	// Check keyframes directory first, fall back to images directory
+	keyframesDir := filepath.Join(projectPath, "keyframes")
 	if scenes, ok := project["scenes"].([]any); ok {
 		for i, scene := range scenes {
 			if sceneMap, ok := scene.(map[string]any); ok {
 				// Try to load image by imageFile first, then by index
 				var imgPath string
+				filename := ""
 				if imageFile, ok := sceneMap["imageFile"].(string); ok && imageFile != "" {
-					imgPath = filepath.Join(imagesDir, imageFile)
+					filename = imageFile
 				} else {
-					imgPath = filepath.Join(imagesDir, fmt.Sprintf("scene_%d.png", i+1))
+					filename = fmt.Sprintf("scene_%d.png", i+1)
+				}
+				
+				// Try keyframes directory first
+				imgPath = filepath.Join(keyframesDir, filename)
+				if _, err := os.Stat(imgPath); os.IsNotExist(err) {
+					// Fall back to images directory for backward compatibility
+					imgPath = filepath.Join(imagesDir, filename)
 				}
 				
 				if imgPath != "" {
@@ -767,6 +838,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/generate-character-art", s.HandleGenerateCharacterArt)
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
+	mux.HandleFunc("POST /api/save-keyframe", s.HandleSaveKeyframe)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
 	mux.HandleFunc("GET /api/browse-folders", s.HandleBrowseFolders)
 
