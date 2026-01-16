@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -825,6 +827,191 @@ func (s *Server) setUpDatabase(dbPath string) error {
 	return nil
 }
 
+// GitHub integration handlers
+type GitHubTestRequest struct {
+	Username string `json:"username"`
+	Token    string `json:"token"`
+}
+
+func (s *Server) HandleGitHubTest(w http.ResponseWriter, r *http.Request) {
+	var req GitHubTestRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Username == "" || req.Token == "" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": false,
+			"error":   "Username and token are required",
+		})
+		return
+	}
+
+	// Test GitHub API connection
+	client := &http.Client{Timeout: 10 * time.Second}
+	apiReq, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
+	apiReq.Header.Set("Authorization", "token "+req.Token)
+	apiReq.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := client.Do(apiReq)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": false,
+			"error":   "Failed to connect to GitHub: " + err.Error(),
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("GitHub authentication failed (status %d)", resp.StatusCode),
+		})
+		return
+	}
+
+	var userData map[string]any
+	json.NewDecoder(resp.Body).Decode(&userData)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"user":    userData["login"],
+	})
+}
+
+type GitHubPushRequest struct {
+	Username   string `json:"username"`
+	Token      string `json:"token"`
+	Repo       string `json:"repo"`
+	Branch     string `json:"branch"`
+	CreateRepo bool   `json:"createRepo"`
+}
+
+func (s *Server) HandleGitHubPush(w http.ResponseWriter, r *http.Request) {
+	var req GitHubPushRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Username == "" || req.Token == "" || req.Repo == "" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": false,
+			"error":   "Username, token, and repo are required",
+		})
+		return
+	}
+
+	if req.Branch == "" {
+		req.Branch = "main"
+	}
+
+	// Source code path
+	sourcePath := "/home/exedev/video-maker"
+	repoURL := fmt.Sprintf("https://%s:%s@github.com/%s/%s.git", req.Username, req.Token, req.Username, req.Repo)
+	publicRepoURL := fmt.Sprintf("https://github.com/%s/%s", req.Username, req.Repo)
+
+	// Create repository if requested
+	if req.CreateRepo {
+		if err := createGitHubRepo(req.Username, req.Token, req.Repo); err != nil {
+			slog.Warn("failed to create repo (may already exist)", "error", err)
+			// Continue anyway - repo might already exist
+		}
+	}
+
+	// Configure git user if not set
+	exec.Command("git", "-C", sourcePath, "config", "user.email", "developer@video-maker.local").Run()
+	exec.Command("git", "-C", sourcePath, "config", "user.name", "Video Maker Developer").Run()
+
+	// Check if remote exists, update or add it
+	checkRemote := exec.Command("git", "-C", sourcePath, "remote", "get-url", "origin")
+	if err := checkRemote.Run(); err != nil {
+		// Remote doesn't exist, add it
+		if err := exec.Command("git", "-C", sourcePath, "remote", "add", "origin", repoURL).Run(); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{
+				"success": false,
+				"error":   "Failed to add git remote: " + err.Error(),
+			})
+			return
+		}
+	} else {
+		// Update existing remote
+		exec.Command("git", "-C", sourcePath, "remote", "set-url", "origin", repoURL).Run()
+	}
+
+	// Stage all changes
+	addCmd := exec.Command("git", "-C", sourcePath, "add", "-A")
+	if output, err := addCmd.CombinedOutput(); err != nil {
+		slog.Warn("git add warning", "output", string(output))
+	}
+
+	// Commit (if there are changes)
+	commitMsg := fmt.Sprintf("Update video-maker source code - %s", time.Now().Format("2006-01-02 15:04:05"))
+	commitCmd := exec.Command("git", "-C", sourcePath, "commit", "-m", commitMsg, "--allow-empty")
+	if output, err := commitCmd.CombinedOutput(); err != nil {
+		slog.Info("git commit", "output", string(output))
+	}
+
+	// Push to GitHub
+	pushCmd := exec.Command("git", "-C", sourcePath, "push", "-u", "origin", req.Branch, "--force")
+	output, err := pushCmd.CombinedOutput()
+	if err != nil {
+		slog.Error("git push failed", "error", err, "output", string(output))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": false,
+			"error":   "Failed to push: " + string(output),
+		})
+		return
+	}
+
+	slog.Info("successfully pushed to GitHub", "repo", publicRepoURL)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"repoUrl": publicRepoURL,
+		"branch":  req.Branch,
+	})
+}
+
+func createGitHubRepo(username, token, repoName string) error {
+	client := &http.Client{Timeout: 10 * time.Second}
+	
+	reqBody, _ := json.Marshal(map[string]any{
+		"name":        repoName,
+		"description": "Video Maker - AI-powered video story creation tool",
+		"private":     false,
+		"auto_init":   false,
+	})
+	
+	req, _ := http.NewRequest("POST", "https://api.github.com/user/repos", strings.NewReader(string(reqBody)))
+	req.Header.Set("Authorization", "token "+token)
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("Content-Type", "application/json")
+	
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != 201 && resp.StatusCode != 422 { // 422 means repo already exists
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to create repo: %s", string(body))
+	}
+	
+	return nil
+}
+
 func (s *Server) Serve(addr string) error {
 	mux := http.NewServeMux()
 	
@@ -841,6 +1028,10 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/save-keyframe", s.HandleSaveKeyframe)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
 	mux.HandleFunc("GET /api/browse-folders", s.HandleBrowseFolders)
+	
+	// GitHub integration
+	mux.HandleFunc("POST /api/github/test", s.HandleGitHubTest)
+	mux.HandleFunc("POST /api/github/push", s.HandleGitHubPush)
 
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))

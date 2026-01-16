@@ -29,6 +29,9 @@
                         <button type="button" class="btn-project" id="settingsBtn">
                             <span>⚙️</span> Settings
                         </button>
+                        <button type="button" class="btn-project" id="developerBtn">
+                            <span>🛠️</span> Dev
+                        </button>
                     </div>
                 </div>
                 <div class="auth-section">
@@ -443,6 +446,83 @@
             </div>
         </div>
 
+        <!-- Developer Settings Modal -->
+        <div id="developerModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content developer-modal">
+                <div class="modal-header">
+                    <h3>🛠️ Developer Settings</h3>
+                    <button class="modal-close" onclick="closeDeveloperModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h4>📦 GitHub Integration</h4>
+                        <p class="settings-desc">Push the video-maker source code to your GitHub repository</p>
+                        
+                        <div class="settings-row">
+                            <label>GitHub Username</label>
+                            <input type="text" id="githubUsername" placeholder="your-username">
+                        </div>
+                        
+                        <div class="settings-row">
+                            <label>Personal Access Token</label>
+                            <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx">
+                            <span class="hint">Create at <a href="https://github.com/settings/tokens/new" target="_blank">GitHub Settings → Tokens</a> (needs repo scope)</span>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <label>Repository Name</label>
+                            <input type="text" id="githubRepo" placeholder="video-maker">
+                        </div>
+                        
+                        <div class="settings-row">
+                            <label>Branch</label>
+                            <input type="text" id="githubBranch" placeholder="main" value="main">
+                        </div>
+                        
+                        <div class="settings-row checkbox-row">
+                            <label>
+                                <input type="checkbox" id="githubCreateRepo"> Create repository if it doesn't exist
+                            </label>
+                        </div>
+                        
+                        <div class="github-actions">
+                            <button class="btn-secondary" onclick="testGithubConnection()">
+                                🔗 Test Connection
+                            </button>
+                            <button class="btn-primary" onclick="pushToGithub()">
+                                <span class="btn-text">🚀 Push to GitHub</span>
+                                <span class="btn-loading" style="display: none;">Pushing...</span>
+                            </button>
+                        </div>
+                        
+                        <div id="githubStatus" class="github-status" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>📁 Source Code Location</h4>
+                        <div class="settings-row">
+                            <label>Project Root</label>
+                            <input type="text" id="sourceCodePath" value="/home/exedev/video-maker" readonly>
+                        </div>
+                        <div class="file-list-preview">
+                            <span class="hint">Files to be pushed:</span>
+                            <ul class="file-tree" id="fileTreePreview">
+                                <li>📄 go.mod, go.sum</li>
+                                <li>📁 cmd/srv/</li>
+                                <li>📁 srv/ (server, templates, static)</li>
+                                <li>📁 db/ (database)</li>
+                                <li>📄 README.md, AGENTS.md</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeDeveloperModal()">Close</button>
+                    <button class="btn-primary" onclick="saveDevSettings()">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast Notifications -->
         <div id="toastContainer" class="toast-container"></div>
 
@@ -587,6 +667,129 @@
         document.getElementById('settingsBtn')?.addEventListener('click', () => {
             openSettingsModal();
         });
+        
+        // Developer Modal
+        document.getElementById('developerBtn')?.addEventListener('click', () => {
+            openDeveloperModal();
+        });
+        
+        // Load saved GitHub settings
+        let GITHUB_SETTINGS = JSON.parse(localStorage.getItem('githubSettings') || '{}');
+        
+        function openDeveloperModal() {
+            document.getElementById('githubUsername').value = GITHUB_SETTINGS.username || '';
+            document.getElementById('githubToken').value = GITHUB_SETTINGS.token || '';
+            document.getElementById('githubRepo').value = GITHUB_SETTINGS.repo || 'video-maker';
+            document.getElementById('githubBranch').value = GITHUB_SETTINGS.branch || 'main';
+            document.getElementById('githubCreateRepo').checked = GITHUB_SETTINGS.createRepo || false;
+            document.getElementById('githubStatus').style.display = 'none';
+            document.getElementById('developerModal').style.display = 'flex';
+        }
+        
+        function closeDeveloperModal() {
+            document.getElementById('developerModal').style.display = 'none';
+        }
+        
+        function saveDevSettings() {
+            GITHUB_SETTINGS = {
+                username: document.getElementById('githubUsername').value.trim(),
+                token: document.getElementById('githubToken').value.trim(),
+                repo: document.getElementById('githubRepo').value.trim(),
+                branch: document.getElementById('githubBranch').value.trim() || 'main',
+                createRepo: document.getElementById('githubCreateRepo').checked
+            };
+            localStorage.setItem('githubSettings', JSON.stringify(GITHUB_SETTINGS));
+            showToast('Developer settings saved!', 'success');
+        }
+        
+        function showGithubStatus(message, type = 'info') {
+            const status = document.getElementById('githubStatus');
+            status.className = `github-status status-${type}`;
+            status.innerHTML = message;
+            status.style.display = 'block';
+        }
+        
+        async function testGithubConnection() {
+            const username = document.getElementById('githubUsername').value.trim();
+            const token = document.getElementById('githubToken').value.trim();
+            
+            if (!username || !token) {
+                showGithubStatus('⚠️ Please enter username and token', 'error');
+                return;
+            }
+            
+            showGithubStatus('🔄 Testing connection...', 'info');
+            
+            try {
+                const response = await fetch('/api/github/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, token })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showGithubStatus(`✅ Connected as <strong>${result.user}</strong>`, 'success');
+                } else {
+                    showGithubStatus(`❌ ${result.error || 'Connection failed'}`, 'error');
+                }
+            } catch (err) {
+                showGithubStatus(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+        
+        async function pushToGithub() {
+            const username = document.getElementById('githubUsername').value.trim();
+            const token = document.getElementById('githubToken').value.trim();
+            const repo = document.getElementById('githubRepo').value.trim();
+            const branch = document.getElementById('githubBranch').value.trim() || 'main';
+            const createRepo = document.getElementById('githubCreateRepo').checked;
+            
+            if (!username || !token || !repo) {
+                showGithubStatus('⚠️ Please fill in all required fields', 'error');
+                return;
+            }
+            
+            // Save settings first
+            saveDevSettings();
+            
+            const btn = document.querySelector('#developerModal .btn-primary');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            
+            showGithubStatus('🚀 Pushing to GitHub...', 'info');
+            
+            try {
+                const response = await fetch('/api/github/push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, token, repo, branch, createRepo })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showGithubStatus(`
+                        ✅ Successfully pushed to GitHub!<br>
+                        <a href="${result.repoUrl}" target="_blank">🔗 ${result.repoUrl}</a>
+                    `, 'success');
+                    showToast('Code pushed to GitHub!', 'success');
+                } else {
+                    showGithubStatus(`❌ ${result.error || 'Push failed'}`, 'error');
+                }
+            } catch (err) {
+                showGithubStatus(`❌ Error: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        }
 
         function openSettingsModal() {
             document.getElementById('projectPathInput').value = PROJECT_SETTINGS.projectPath;
