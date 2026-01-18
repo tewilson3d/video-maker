@@ -1,43 +1,40 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import Toolbar from './components/Toolbar';
 import AssetBrowser from './components/AssetBrowser';
 import Canvas from './components/Canvas';
 import Timeline from './components/Timeline';
-import PNGFlipbookViewer from './components/PNGFlipbookViewer';
 import Prompting from './components/Prompting';
 import Storyboard from './components/Storyboard';
 import { useEditorStore } from './store';
+import { 
+  generateProjectFromStoryboard, 
+  exportStoryboardJSON, 
+  downloadJSON,
+  StoryboardData,
+  StoryboardScene 
+} from './utils/projectGenerator';
 
 // Main tabs for the unified app
 type MainTab = 'prompting' | 'storyboard' | 'editing';
-
-interface Scene {
-  id: string;
-  narration: string;
-  imagePrompt: string;
-  imageUrl?: string;
-  status: 'pending' | 'generating' | 'complete' | 'error';
-}
-
-interface StoryboardData {
-  storyPrompt: string;
-  characters: { index: number; description: string; imageUrl?: string }[];
-  scenes: Scene[];
-}
 
 function App() {
   const [activeTab, setActiveTab] = useState<MainTab>('prompting');
   const [storyboardData, setStoryboardData] = useState<StoryboardData>({
     storyPrompt: '',
     characters: [],
-    scenes: []
+    scenes: [],
+    settings: {
+      fps: 30,
+      canvasWidth: 1920,
+      canvasHeight: 1080,
+      defaultSceneDuration: 120
+    }
   });
   
   const { 
     project, 
     selectedTool,
     setSelectedTool,
-    clearCanvasSelection,
     currentTime,
     setCurrentTime,
     isPlaying,
@@ -50,10 +47,6 @@ function App() {
     setOnionSkinFrames,
     brushSettings,
     setBrushSettings,
-    canvasSelectedClipId,
-    setCanvasSelectedClipId,
-    selectedClipIds,
-    setSelectedClipIds,
     setProject,
     undo,
     redo,
@@ -73,6 +66,11 @@ function App() {
     return localStorage.getItem('geminiApiKey') || '';
   });
 
+  // Project path for saving
+  const [projectPath, setProjectPath] = useState(() => {
+    return localStorage.getItem('projectPath') || '';
+  });
+
   // Generate storyboard from prompts
   const handleGenerateStoryboard = async (data: {
     storyPrompt: string;
@@ -80,22 +78,33 @@ function App() {
     keyframes: { index: number; description: string }[];
   }) => {
     // Create initial scenes with pending status
-    const scenes: Scene[] = data.keyframes.map((kf, i) => ({
+    const scenes: StoryboardScene[] = data.keyframes.map((kf, i) => ({
       id: `scene_${i + 1}`,
       narration: kf.description,
       imagePrompt: kf.description,
       imageUrl: undefined,
-      status: 'pending' as const
+      status: 'pending' as const,
+      duration: 120 // 4 seconds at 30fps
     }));
 
-    setStoryboardData({
+    const newStoryboardData: StoryboardData = {
       storyPrompt: data.storyPrompt,
       characters: data.characters.map(c => ({ ...c, imageUrl: undefined })),
-      scenes
-    });
+      scenes,
+      settings: storyboardData.settings
+    };
+
+    setStoryboardData(newStoryboardData);
 
     // Switch to storyboard tab
     setActiveTab('storyboard');
+
+    // Auto-generate project path if not set
+    if (!projectPath) {
+      const newPath = `/home/exedev/video-maker/projects/project-${Date.now()}`;
+      setProjectPath(newPath);
+      localStorage.setItem('projectPath', newPath);
+    }
 
     // Generate images for each scene
     for (let i = 0; i < scenes.length; i++) {
@@ -115,14 +124,21 @@ function App() {
         );
 
         // Update with generated image
-        setStoryboardData(prev => ({
-          ...prev,
-          scenes: prev.scenes.map((s, idx) => 
-            idx === i ? { ...s, imageUrl, status: 'complete' as const } : s
-          )
-        }));
+        setStoryboardData(prev => {
+          const updated = {
+            ...prev,
+            scenes: prev.scenes.map((s, idx) => 
+              idx === i ? { ...s, imageUrl, status: 'complete' as const } : s
+            )
+          };
+          
+          // Auto-save storyboard JSON after each scene
+          saveStoryboardToServer(updated);
+          
+          return updated;
+        });
 
-        // Auto-save keyframe to server
+        // Auto-save keyframe image to server
         await saveKeyframeToServer(i + 1, imageUrl);
 
       } catch (error) {
@@ -137,6 +153,34 @@ function App() {
     }
   };
 
+  // Save storyboard JSON to server
+  const saveStoryboardToServer = async (data: StoryboardData) => {
+    if (!projectPath) return;
+    
+    try {
+      await fetch('/api/save-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath,
+          storyPrompt: data.storyPrompt,
+          characters: data.characters,
+          scenes: data.scenes.map(s => ({
+            id: s.id,
+            narration: s.narration,
+            imagePrompt: s.imagePrompt,
+            imageUrl: s.imageUrl,
+            duration: s.duration
+          })),
+          settings: data.settings
+        })
+      });
+      console.log('Storyboard saved to:', projectPath);
+    } catch (error) {
+      console.error('Failed to save storyboard:', error);
+    }
+  };
+
   // Generate scene image using Gemini API
   const generateSceneImage = async (
     sceneDescription: string,
@@ -144,7 +188,7 @@ function App() {
     characterDescriptions: string[]
   ): Promise<string> => {
     if (!geminiApiKey) {
-      throw new Error('Gemini API key not configured');
+      throw new Error('Gemini API key not configured. Click ⚙️ to set it.');
     }
 
     const prompt = `Generate a cinematic storyboard frame image for a video scene.
@@ -170,7 +214,8 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
     );
 
     if (!response.ok) {
-      throw new Error('Failed to generate image');
+      const error = await response.json();
+      throw new Error(error.error?.message || 'Failed to generate image');
     }
 
     const data = await response.json();
@@ -188,7 +233,7 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
 
   // Save keyframe to server
   const saveKeyframeToServer = async (sceneIndex: number, imageData: string) => {
-    const projectPath = localStorage.getItem('projectPath') || `/home/exedev/video-maker/projects/project-${Date.now()}`;
+    if (!projectPath) return;
     
     try {
       await fetch('/api/save-keyframe', {
@@ -219,12 +264,16 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
         storyboardData.characters.map(c => c.description)
       );
 
-      setStoryboardData(prev => ({
-        ...prev,
-        scenes: prev.scenes.map((s, idx) => 
-          idx === index ? { ...s, imageUrl, status: 'complete' as const } : s
-        )
-      }));
+      setStoryboardData(prev => {
+        const updated = {
+          ...prev,
+          scenes: prev.scenes.map((s, idx) => 
+            idx === index ? { ...s, imageUrl, status: 'complete' as const } : s
+          )
+        };
+        saveStoryboardToServer(updated);
+        return updated;
+      });
 
       await saveKeyframeToServer(index + 1, imageUrl);
 
@@ -240,49 +289,67 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
   };
 
   // Edit scene
-  const handleEditScene = (index: number, scene: Scene) => {
-    setStoryboardData(prev => ({
-      ...prev,
-      scenes: prev.scenes.map((s, idx) => idx === index ? scene : s)
-    }));
+  const handleEditScene = (index: number, scene: StoryboardScene) => {
+    setStoryboardData(prev => {
+      const updated = {
+        ...prev,
+        scenes: prev.scenes.map((s, idx) => idx === index ? scene : s)
+      };
+      saveStoryboardToServer(updated);
+      return updated;
+    });
   };
 
-  // Send scenes to editor
-  const handleSendToEditor = (scenes: Scene[]) => {
-    // Add scenes as clips to the timeline
-    const newClips = scenes.map((scene, i) => ({
-      id: `clip_${Date.now()}_${i}`,
-      type: 'image' as const,
-      name: `Scene ${i + 1}`,
-      startFrame: i * 120, // 4 seconds each at 30fps
-      duration: 120,
-      src: scene.imageUrl || '',
-      transform: {
-        x: 0,
-        y: 0,
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 0,
-        opacity: 1
-      }
-    }));
+  // Send scenes to editor - generates proper Project JSON
+  const handleSendToEditor = (scenes: StoryboardScene[]) => {
+    // Create a storyboard with only selected scenes
+    const selectedStoryboard: StoryboardData = {
+      ...storyboardData,
+      scenes: scenes
+    };
 
-    // Add to project timeline
-    setProject({
-      ...project,
-      timeline: {
-        ...project.timeline,
-        tracks: [
-          {
-            ...project.timeline.tracks[0],
-            clips: [...project.timeline.tracks[0].clips, ...newClips]
-          },
-          ...project.timeline.tracks.slice(1)
-        ]
-      }
-    });
+    // Generate the project from storyboard
+    const generatedProject = generateProjectFromStoryboard(selectedStoryboard);
+    
+    // Load into editor
+    setProject(generatedProject);
+    
+    // Save project JSON
+    if (projectPath) {
+      saveProjectToServer(generatedProject);
+    }
 
+    // Switch to editing tab
     setActiveTab('editing');
+  };
+
+  // Save full project to server
+  const saveProjectToServer = async (proj: typeof project) => {
+    if (!projectPath) return;
+    
+    try {
+      await fetch('/api/save-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath,
+          project: proj,
+          storyPrompt: storyboardData.storyPrompt,
+          characters: storyboardData.characters,
+          scenes: storyboardData.scenes,
+          settings: storyboardData.settings
+        })
+      });
+      console.log('Project saved to:', projectPath);
+    } catch (error) {
+      console.error('Failed to save project:', error);
+    }
+  };
+
+  // Download storyboard as JSON
+  const handleDownloadStoryboard = () => {
+    const json = exportStoryboardJSON(storyboardData);
+    downloadJSON(json, 'storyboard.json');
   };
 
   // Keyboard shortcuts
@@ -305,6 +372,21 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
+
+  // Settings modal
+  const handleOpenSettings = () => {
+    const key = prompt('Enter Gemini API Key:', geminiApiKey);
+    if (key !== null) {
+      setGeminiApiKey(key);
+      localStorage.setItem('geminiApiKey', key);
+    }
+    
+    const path = prompt('Enter Project Path:', projectPath || '/home/exedev/video-maker/projects/my-project');
+    if (path !== null) {
+      setProjectPath(path);
+      localStorage.setItem('projectPath', path);
+    }
+  };
 
   return (
     <div className="app-container">
@@ -334,16 +416,12 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
           </button>
         </nav>
         <div className="app-actions">
-          <button 
-            className="btn-settings"
-            onClick={() => {
-              const key = prompt('Enter Gemini API Key:', geminiApiKey);
-              if (key !== null) {
-                setGeminiApiKey(key);
-                localStorage.setItem('geminiApiKey', key);
-              }
-            }}
-          >
+          {activeTab === 'storyboard' && storyboardData.scenes.length > 0 && (
+            <button className="btn-download" onClick={handleDownloadStoryboard}>
+              📥 Download JSON
+            </button>
+          )}
+          <button className="btn-settings" onClick={handleOpenSettings}>
             ⚙️
           </button>
         </div>

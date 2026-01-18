@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
-
-interface Scene {
-  id: string;
-  narration: string;
-  imagePrompt: string;
-  imageUrl?: string;
-  status: 'pending' | 'generating' | 'complete' | 'error';
-}
+import { StoryboardScene } from '../utils/projectGenerator';
 
 interface StoryboardProps {
   storyPrompt: string;
-  scenes: Scene[];
+  scenes: (StoryboardScene & { status?: string })[];
   onRegenerateScene: (index: number) => void;
-  onEditScene: (index: number, scene: Scene) => void;
-  onSendToEditor: (scenes: Scene[]) => void;
+  onEditScene: (index: number, scene: StoryboardScene) => void;
+  onSendToEditor: (scenes: StoryboardScene[]) => void;
 }
 
 const Storyboard: React.FC<StoryboardProps> = ({
@@ -24,8 +17,10 @@ const Storyboard: React.FC<StoryboardProps> = ({
   onSendToEditor
 }) => {
   const [selectedScenes, setSelectedScenes] = useState<Set<number>>(new Set());
+  const [editingScene, setEditingScene] = useState<number | null>(null);
 
   const toggleSelection = (index: number, event: React.MouseEvent) => {
+    event.stopPropagation();
     const newSelection = new Set(selectedScenes);
     
     if (event.ctrlKey || event.metaKey) {
@@ -60,8 +55,24 @@ const Storyboard: React.FC<StoryboardProps> = ({
   const handleSendToEditor = () => {
     const selectedSceneData = selectedScenes.size > 0
       ? Array.from(selectedScenes).sort((a, b) => a - b).map(i => scenes[i])
-      : scenes;
+      : scenes.filter(s => s.imageUrl); // Only send scenes with images
+    
+    if (selectedSceneData.length === 0) {
+      alert('No scenes with images to send to editor');
+      return;
+    }
+    
     onSendToEditor(selectedSceneData);
+  };
+
+  const handleEditNarration = (index: number, narration: string) => {
+    const scene = scenes[index];
+    onEditScene(index, { ...scene, narration });
+  };
+
+  const handleEditDuration = (index: number, duration: number) => {
+    const scene = scenes[index];
+    onEditScene(index, { ...scene, duration });
   };
 
   if (scenes.length === 0) {
@@ -76,14 +87,21 @@ const Storyboard: React.FC<StoryboardProps> = ({
     );
   }
 
+  const completedCount = scenes.filter(s => s.status === 'complete' || s.imageUrl).length;
+  const generatingCount = scenes.filter(s => s.status === 'generating').length;
+
   return (
     <div className="storyboard-container">
       <div className="storyboard-header">
         <div className="storyboard-info">
           <span className="story-preview">{storyPrompt.substring(0, 100)}...</span>
-          {selectedScenes.size > 0 && (
-            <span className="selection-info">{selectedScenes.size} scene(s) selected</span>
-          )}
+          <div className="storyboard-stats">
+            <span>{completedCount}/{scenes.length} scenes generated</span>
+            {generatingCount > 0 && <span className="generating">({generatingCount} generating...)</span>}
+            {selectedScenes.size > 0 && (
+              <span className="selection-info">{selectedScenes.size} selected</span>
+            )}
+          </div>
         </div>
         <div className="storyboard-actions">
           <button onClick={selectAll} className="btn-secondary">☑️ All</button>
@@ -98,12 +116,19 @@ const Storyboard: React.FC<StoryboardProps> = ({
         {scenes.map((scene, index) => (
           <div
             key={scene.id}
-            className={`storyboard-card ${selectedScenes.has(index) ? 'selected' : ''} ${scene.status}`}
+            className={`storyboard-card ${selectedScenes.has(index) ? 'selected' : ''} status-${scene.status || 'pending'}`}
             onClick={(e) => toggleSelection(index, e)}
           >
             <div className="card-header">
               <span className="scene-number">Scene {index + 1}</span>
               <div className="card-actions">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditingScene(editingScene === index ? null : index); }}
+                  title="Edit"
+                  className="btn-icon"
+                >
+                  ✏️
+                </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onRegenerateScene(index); }}
                   title="Regenerate"
@@ -131,11 +156,41 @@ const Storyboard: React.FC<StoryboardProps> = ({
               ) : (
                 <div className="scene-placeholder">
                   <span>🖼️</span>
+                  <span>Pending</span>
                 </div>
               )}
             </div>
             <div className="card-content">
-              <p className="scene-narration">{scene.narration}</p>
+              {editingScene === index ? (
+                <div className="scene-edit">
+                  <textarea
+                    value={scene.narration}
+                    onChange={(e) => handleEditNarration(index, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    rows={3}
+                  />
+                  <div className="duration-edit">
+                    <label>Duration (frames):</label>
+                    <input
+                      type="number"
+                      value={scene.duration || 120}
+                      onChange={(e) => handleEditDuration(index, parseInt(e.target.value) || 120)}
+                      onClick={(e) => e.stopPropagation()}
+                      min={1}
+                    />
+                    <span className="duration-hint">
+                      ({((scene.duration || 120) / 30).toFixed(1)}s at 30fps)
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="scene-narration">{scene.narration}</p>
+                  <span className="scene-duration">
+                    {((scene.duration || 120) / 30).toFixed(1)}s
+                  </span>
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -147,9 +202,13 @@ const Storyboard: React.FC<StoryboardProps> = ({
           {scenes.map((scene, index) => (
             <div
               key={scene.id}
-              className={`timeline-item ${selectedScenes.has(index) ? 'selected' : ''}`}
-              style={{ backgroundImage: scene.imageUrl ? `url('${scene.imageUrl}')` : 'none' }}
+              className={`timeline-item ${selectedScenes.has(index) ? 'selected' : ''} ${scene.imageUrl ? '' : 'empty'}`}
+              style={{ 
+                backgroundImage: scene.imageUrl ? `url('${scene.imageUrl}')` : 'none',
+                width: `${(scene.duration || 120) / 2}px`
+              }}
               onClick={(e) => toggleSelection(index, e)}
+              title={`Scene ${index + 1}: ${scene.narration.substring(0, 50)}...`}
             />
           ))}
         </div>

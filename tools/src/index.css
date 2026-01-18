@@ -1673,3 +1673,108 @@ button:disabled {
   flex: 1;
   overflow: hidden;
 }
+
+/* Additional Storyboard Styles */
+.storyboard-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.storyboard-stats .generating {
+  color: #f59e0b;
+}
+
+.storyboard-stats .selection-info {
+  color: #6366f1;
+}
+
+.scene-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.scene-edit textarea {
+  width: 100%;
+  padding: 0.5rem;
+  background: #0a0a0f;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.duration-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.duration-edit label {
+  color: #888;
+}
+
+.duration-edit input {
+  width: 80px;
+  padding: 0.25rem 0.5rem;
+  background: #0a0a0f;
+  border: 1px solid #3a3a4a;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.8rem;
+}
+
+.duration-hint {
+  color: #666;
+}
+
+.scene-duration {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  background: #1a1a2e;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.timeline-item.empty {
+  background: #1a1a2e;
+  border: 1px dashed #3a3a4a;
+}
+
+.btn-download {
+  padding: 0.5rem 1rem;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+}
+
+.btn-download:hover {
+  background: #2a2a3e;
+  border-color: #6366f1;
+}
+
+.status-pending .card-image {
+  opacity: 0.5;
+}
+
+.status-generating .card-image {
+  border: 2px solid #f59e0b;
+}
+
+.status-complete .card-image {
+  border: 2px solid #22c55e;
+}
+
+.status-error .card-image {
+  border: 2px solid #ef4444;
+}
