@@ -2797,9 +2797,9 @@ const Timeline: React.FC = () => {
 
 
   return (
-    <div className="timeline" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="timeline" style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Timeline content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div className="timeline-header">
           <button 
             onClick={() => addTrack('video')}

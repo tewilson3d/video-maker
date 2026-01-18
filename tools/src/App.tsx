@@ -19,8 +19,12 @@ import {
 // Main tabs for the unified app
 type MainTab = 'prompting' | 'storyboard' | 'editing';
 
+// Check if we're embedded in an iframe
+const isEmbedded = window.self !== window.top;
+
 function App() {
-  const [activeTab, setActiveTab] = useState<MainTab>('prompting');
+  // When embedded, always show editing tab
+  const [activeTab, setActiveTab] = useState<MainTab>(isEmbedded ? 'editing' : 'prompting');
   const [storyboardData, setStoryboardData] = useState<StoryboardData>({
     storyPrompt: '',
     characters: [],
@@ -436,52 +440,54 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
   };
 
   return (
-    <div className="app-container">
-      {/* Header with tabs */}
-      <header className="app-header">
-        <div className="app-brand">
-          <h1>🎬 Video Editor</h1>
-        </div>
-        <ProjectControls
-          onLoadProject={handleLoadProject}
-          onSaveProject={handleSaveProject}
-          projectPath={projectPath}
-          setProjectPath={(path) => {
-            setProjectPath(path);
-            localStorage.setItem('projectPath', path);
-          }}
-        />
-        <nav className="app-tabs">
-          <button
-            className={`tab-btn ${activeTab === 'prompting' ? 'active' : ''}`}
-            onClick={() => setActiveTab('prompting')}
-          >
-            ✍️ Prompting
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'storyboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('storyboard')}
-          >
-            🎬 Storyboard
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'editing' ? 'active' : ''}`}
-            onClick={() => setActiveTab('editing')}
-          >
-            🎞️ Editing
-          </button>
-        </nav>
-        <div className="app-actions">
-          {activeTab === 'storyboard' && storyboardData.scenes.length > 0 && (
-            <button className="btn-download" onClick={handleDownloadStoryboard}>
-              📥 Download JSON
+    <div className={`app-container ${isEmbedded ? 'embedded' : ''}`}>
+      {/* Header with tabs - hidden when embedded */}
+      {!isEmbedded && (
+        <header className="app-header">
+          <div className="app-brand">
+            <h1>🎬 Video Editor</h1>
+          </div>
+          <ProjectControls
+            onLoadProject={handleLoadProject}
+            onSaveProject={handleSaveProject}
+            projectPath={projectPath}
+            setProjectPath={(path) => {
+              setProjectPath(path);
+              localStorage.setItem('projectPath', path);
+            }}
+          />
+          <nav className="app-tabs">
+            <button
+              className={`tab-btn ${activeTab === 'prompting' ? 'active' : ''}`}
+              onClick={() => setActiveTab('prompting')}
+            >
+              ✍️ Prompting
             </button>
-          )}
-          <button className="btn-settings" onClick={handleOpenSettings}>
-            ⚙️
-          </button>
-        </div>
-      </header>
+            <button
+              className={`tab-btn ${activeTab === 'storyboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('storyboard')}
+            >
+              🎬 Storyboard
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'editing' ? 'active' : ''}`}
+              onClick={() => setActiveTab('editing')}
+            >
+              🎞️ Editing
+            </button>
+          </nav>
+          <div className="app-actions">
+            {activeTab === 'storyboard' && storyboardData.scenes.length > 0 && (
+              <button className="btn-download" onClick={handleDownloadStoryboard}>
+                📥 Download JSON
+              </button>
+            )}
+            <button className="btn-settings" onClick={handleOpenSettings}>
+              ⚙️
+            </button>
+          </div>
+        </header>
+      )}
 
       {/* Tab Content */}
       <main className="app-content">

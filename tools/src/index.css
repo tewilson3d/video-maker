@@ -1671,7 +1671,14 @@ button:disabled {
 .editor-main {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
+}
+
+.editor-layout .timeline {
+  flex-shrink: 0;
+  height: auto;
+  max-height: 300px;
 }
 
 /* Additional Storyboard Styles */
@@ -1802,4 +1809,27 @@ button:disabled {
 .btn-project:hover {
   background: #2a2a3e;
   border-color: #6366f1;
+}
+
+/* Embedded mode styles */
+.app-container.embedded {
+  padding-top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-container.embedded .app-content {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-container.embedded .editor-layout {
+  height: 100%;
+}
+
+.app-container.embedded .editor-main {
+  flex: 1;
+  min-height: 0;
 }
