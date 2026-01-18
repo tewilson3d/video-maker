@@ -530,6 +530,95 @@
             </div>
         </div>
 
+        <!-- Scene Editor Modal -->
+        <div id="sceneEditorModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content scene-editor-modal" style="max-width: 1100px;">
+                <div class="modal-header">
+                    <h3>🎬 <span id="sceneEditorTitle">Scene 1</span></h3>
+                    <button class="modal-close" onclick="closeSceneEditor()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="scene-editor-grid" style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1.5rem;">
+                        <!-- First Frame -->
+                        <div class="frame-section">
+                            <h4>🎬 First Frame</h4>
+                            <p class="frame-hint">Starting image for the video clip</p>
+                            <div class="frame-preview" id="firstFramePreview">
+                                <img id="firstFrameImg" src="" alt="First Frame">
+                            </div>
+                            <div class="frame-actions">
+                                <button class="btn-secondary" onclick="regenerateFirstFrame()">
+                                    🔄 Regenerate
+                                </button>
+                                <button class="btn-secondary" onclick="uploadFirstFrame()">
+                                    📁 Upload
+                                </button>
+                            </div>
+                            <input type="file" id="firstFrameInput" accept="image/*" style="display: none;">
+                        </div>
+                        
+                        <!-- Arrow indicator -->
+                        <div class="frame-arrow">
+                            <span>➡️</span>
+                            <p>Veo 3 will animate between frames</p>
+                        </div>
+                        
+                        <!-- Last Frame -->
+                        <div class="frame-section">
+                            <h4>🎬 Last Frame <span class="optional-badge">Optional</span></h4>
+                            <p class="frame-hint">End image for smoother transitions</p>
+                            <div class="frame-preview" id="lastFramePreview">
+                                <div class="frame-placeholder" id="lastFramePlaceholder">
+                                    <span>➕</span>
+                                    <p>Add last frame for image-to-image video</p>
+                                    <small>Without this, Veo will generate motion from first frame only</small>
+                                </div>
+                                <img id="lastFrameImg" src="" alt="Last Frame" style="display: none;">
+                            </div>
+                            <div class="frame-actions">
+                                <button class="btn-secondary" onclick="generateLastFrame()">
+                                    ✨ Generate
+                                </button>
+                                <button class="btn-secondary" onclick="uploadLastFrame()">
+                                    📁 Upload
+                                </button>
+                                <button class="btn-secondary btn-remove" id="removeLastFrameBtn" onclick="removeLastFrame()" style="display: none;">
+                                    🗑️ Remove
+                                </button>
+                            </div>
+                            <input type="file" id="lastFrameInput" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+                    
+                    <!-- Scene Description -->
+                    <div class="scene-description-section">
+                        <h4>📝 Scene Description</h4>
+                        <textarea id="sceneDescriptionInput" placeholder="Describe the motion/action for this scene..." rows="3"></textarea>
+                        <span class="hint">This will guide Veo 3's video generation</span>
+                    </div>
+                    
+                    <!-- Duration Setting -->
+                    <div class="scene-settings-row">
+                        <div class="setting-item">
+                            <label>⏱️ Duration</label>
+                            <select id="sceneDuration">
+                                <option value="3">3 seconds</option>
+                                <option value="5" selected>5 seconds</option>
+                                <option value="8">8 seconds</option>
+                                <option value="10">10 seconds</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeSceneEditor()">Cancel</button>
+                    <button class="btn-primary" onclick="saveSceneChanges()">
+                        💾 Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast Notifications -->
         <div id="toastContainer" class="toast-container"></div>
 
@@ -598,11 +687,12 @@
             // Render storyboard grid
             const grid = document.getElementById('storyboardGrid');
             grid.innerHTML = storyboardData.scenes.map((scene, index) => `
-                <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)">
+                <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)" ondblclick="event.stopPropagation(); openSceneEditor(${index})">
                     <div class="card-header">
                         <span class="scene-number">Scene ${index + 1}</span>
+                        ${scene.lastFrameUrl ? '<div class="last-frame-indicator" title="Has last frame for Veo interpolation">🎬↔️</div>' : ''}
                         <div class="card-actions">
-                            <button class="btn-icon-sm" onclick="event.stopPropagation(); editScene(${index})" title="Edit">✏️</button>
+                            <button class="btn-icon-sm" onclick="event.stopPropagation(); openSceneEditor(${index})" title="Edit">✏️</button>
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
                         </div>
                     </div>
@@ -625,16 +715,235 @@
             switchMainTab('storyboard');
         }
 
+        // Scene Editor State
+        let currentEditingSceneIndex = null;
+        let sceneEditorData = {
+            firstFrame: null,
+            lastFrame: null,
+            description: '',
+            duration: 5
+        };
+
         function editScene(index) {
-            alert('Edit scene ' + (index + 1) + ' - coming soon!');
+            openSceneEditor(index);
+        }
+
+        function openSceneEditor(index) {
+            if (!currentStoryboard || !currentStoryboard.scenes[index]) return;
+            
+            currentEditingSceneIndex = index;
+            const scene = currentStoryboard.scenes[index];
+            
+            // Set title
+            document.getElementById('sceneEditorTitle').textContent = `Scene ${index + 1}`;
+            
+            // Set first frame
+            const firstFrameImg = document.getElementById('firstFrameImg');
+            firstFrameImg.src = scene.imageUrl || '';
+            sceneEditorData.firstFrame = scene.imageUrl;
+            
+            // Set last frame if exists
+            const lastFrameImg = document.getElementById('lastFrameImg');
+            const lastFramePlaceholder = document.getElementById('lastFramePlaceholder');
+            const removeLastFrameBtn = document.getElementById('removeLastFrameBtn');
+            
+            if (scene.lastFrameUrl) {
+                lastFrameImg.src = scene.lastFrameUrl;
+                lastFrameImg.style.display = 'block';
+                lastFramePlaceholder.style.display = 'none';
+                removeLastFrameBtn.style.display = 'inline-block';
+                sceneEditorData.lastFrame = scene.lastFrameUrl;
+            } else {
+                lastFrameImg.style.display = 'none';
+                lastFramePlaceholder.style.display = 'flex';
+                removeLastFrameBtn.style.display = 'none';
+                sceneEditorData.lastFrame = null;
+            }
+            
+            // Set description
+            document.getElementById('sceneDescriptionInput').value = scene.narration || scene.description || '';
+            sceneEditorData.description = scene.narration || scene.description || '';
+            
+            // Set duration
+            document.getElementById('sceneDuration').value = scene.duration || 5;
+            sceneEditorData.duration = scene.duration || 5;
+            
+            // Show modal
+            document.getElementById('sceneEditorModal').style.display = 'flex';
+        }
+
+        function closeSceneEditor() {
+            document.getElementById('sceneEditorModal').style.display = 'none';
+            currentEditingSceneIndex = null;
+        }
+
+        function regenerateFirstFrame() {
+            if (currentEditingSceneIndex === null) return;
+            regenerateSceneImage(currentEditingSceneIndex);
+        }
+
+        function uploadFirstFrame() {
+            document.getElementById('firstFrameInput').click();
+        }
+
+        document.getElementById('firstFrameInput')?.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const dataUrl = event.target.result;
+                document.getElementById('firstFrameImg').src = dataUrl;
+                sceneEditorData.firstFrame = dataUrl;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        });
+
+        async function generateLastFrame() {
+            if (currentEditingSceneIndex === null) return;
+            if (!GEMINI_API_KEY && !accessToken) {
+                showToast('Please configure Gemini API first', 'error');
+                return;
+            }
+            
+            const scene = currentStoryboard.scenes[currentEditingSceneIndex];
+            const description = document.getElementById('sceneDescriptionInput').value || scene.narration;
+            
+            showToast('Generating last frame...', 'info');
+            
+            try {
+                // Generate a variation/end state of the scene
+                const prompt = `Generate the ending frame for a video scene. This should show the natural conclusion or end state of the action described.
+
+Scene description: ${description}
+
+Story context: ${currentStoryboard.storyPrompt}
+
+This is the LAST frame of a video clip. Show where the action ends up after the motion completes.
+
+Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio 16:9.`;
+                
+                const imageUrl = await callGeminiImageAPI(prompt);
+                
+                document.getElementById('lastFrameImg').src = imageUrl;
+                document.getElementById('lastFrameImg').style.display = 'block';
+                document.getElementById('lastFramePlaceholder').style.display = 'none';
+                document.getElementById('removeLastFrameBtn').style.display = 'inline-block';
+                sceneEditorData.lastFrame = imageUrl;
+                
+                showToast('Last frame generated!', 'success');
+            } catch (err) {
+                console.error('Failed to generate last frame:', err);
+                showToast('Failed to generate: ' + err.message, 'error');
+            }
+        }
+
+        function uploadLastFrame() {
+            document.getElementById('lastFrameInput').click();
+        }
+
+        document.getElementById('lastFrameInput')?.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const dataUrl = event.target.result;
+                document.getElementById('lastFrameImg').src = dataUrl;
+                document.getElementById('lastFrameImg').style.display = 'block';
+                document.getElementById('lastFramePlaceholder').style.display = 'none';
+                document.getElementById('removeLastFrameBtn').style.display = 'inline-block';
+                sceneEditorData.lastFrame = dataUrl;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        });
+
+        function removeLastFrame() {
+            document.getElementById('lastFrameImg').src = '';
+            document.getElementById('lastFrameImg').style.display = 'none';
+            document.getElementById('lastFramePlaceholder').style.display = 'flex';
+            document.getElementById('removeLastFrameBtn').style.display = 'none';
+            sceneEditorData.lastFrame = null;
+        }
+
+        function saveSceneChanges() {
+            if (currentEditingSceneIndex === null || !currentStoryboard) return;
+            
+            const scene = currentStoryboard.scenes[currentEditingSceneIndex];
+            
+            // Update scene data
+            scene.imageUrl = sceneEditorData.firstFrame;
+            scene.lastFrameUrl = sceneEditorData.lastFrame;
+            scene.narration = document.getElementById('sceneDescriptionInput').value;
+            scene.description = document.getElementById('sceneDescriptionInput').value;
+            scene.duration = parseInt(document.getElementById('sceneDuration').value);
+            
+            // Update the card in the UI
+            const card = document.querySelector(`.storyboard-card[data-scene-index="${currentEditingSceneIndex}"]`);
+            if (card) {
+                const img = card.querySelector('.card-image img');
+                if (img && sceneEditorData.firstFrame) {
+                    img.src = sceneEditorData.firstFrame;
+                }
+                const narration = card.querySelector('.scene-narration');
+                if (narration) {
+                    narration.textContent = scene.narration;
+                }
+                
+                // Add indicator if has last frame
+                let indicator = card.querySelector('.last-frame-indicator');
+                if (scene.lastFrameUrl) {
+                    if (!indicator) {
+                        indicator = document.createElement('div');
+                        indicator.className = 'last-frame-indicator';
+                        indicator.innerHTML = '🎬↔️';
+                        indicator.title = 'Has last frame for Veo interpolation';
+                        card.querySelector('.card-header').appendChild(indicator);
+                    }
+                } else if (indicator) {
+                    indicator.remove();
+                }
+            }
+            
+            // Save to server
+            saveStoryboardToServerQuick();
+            
+            closeSceneEditor();
+            showToast('Scene saved!', 'success');
+        }
+
+        // Quick save without full project save
+        async function saveStoryboardToServerQuick() {
+            let projectPath = PROJECT_SETTINGS.projectPath || PROJECT_PATH;
+            if (!projectPath || projectPath === '/home/exedev/video-maker/projects') {
+                return; // Don't save if no project path set
+            }
+            
+            try {
+                await fetch('/api/save-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectPath: projectPath,
+                        storyPrompt: currentStoryboard.storyPrompt,
+                        characters: currentStoryboard.characters || [],
+                        scenes: currentStoryboard.scenes,
+                        settings: PROJECT_SETTINGS
+                    })
+                });
+            } catch (err) {
+                console.error('Auto-save failed:', err);
+            }
         }
 
         function regenerateScene(index) {
-            alert('Regenerate scene ' + (index + 1) + ' - coming soon!');
+            regenerateSceneImage(index);
         }
 
         function openSceneDetail(index) {
-            alert('Scene detail view - coming soon!');
+            openSceneEditor(index);
         }
 
         function scrollToScene(index) {
@@ -2348,10 +2657,11 @@ Story context: ${storyContext}`;
             // Render storyboard grid with loading state
             const grid = document.getElementById('storyboardGrid');
             grid.innerHTML = storyboardData.scenes.map((scene, index) => `
-                <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)">
+                <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)" ondblclick="event.stopPropagation(); openSceneEditor(${index})">
                     <div class="card-header">
                         <span class="scene-number">Scene ${index + 1}</span>
                         <div class="card-actions">
+                            <button class="btn-icon-sm" onclick="event.stopPropagation(); openSceneEditor(${index})" title="Edit">✏️</button>
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
                         </div>
                     </div>
