@@ -3040,3 +3040,15 @@ footer {
 .clip-status.ready {
     background: rgba(99, 102, 241, 0.8);
 }
+
+/* Video Actions */
+.video-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-external {
+    text-decoration: none;
+    font-size: 0.85rem;
+}
