@@ -944,6 +944,13 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 return;
             }
 
+            // Check for API key
+            if (!GEMINI_API_KEY && !accessToken) {
+                showToast('Please configure Gemini API key first', 'error');
+                document.getElementById('oauthSetupModal').style.display = 'flex';
+                return;
+            }
+
             // Get scenes to generate - selected ones or all
             let scenesToGenerate = [];
             if (selectedScenes && selectedScenes.size > 0) {
@@ -1018,6 +1025,10 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                             preview.innerHTML = `
                                 <img src="${scene.imageUrl}" alt="Scene ${index + 1}" style="width:100%;height:100%;object-fit:cover;">
                                 <div class="clip-status ${videoResult.status}">${videoResult.message}</div>
+                                <div class="clip-actions">
+                                    <button onclick="copyVideoPrompt(${index})" title="Copy prompt for Veo">📋</button>
+                                    <button onclick="uploadVideoClip(${index})" title="Upload video">📁</button>
+                                </div>
                             `;
                         }
                     }
@@ -1064,34 +1075,93 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         }
 
         async function generateVideoWithVeo(clipData) {
-            // Check if we have Veo API configured (future integration)
-            // For now, prepare the data and mark as pending for manual generation
+            // Build the video generation prompt
+            const prompt = buildVideoPrompt(clipData);
             
-            // Try to call Veo 3 API if available
-            try {
-                const response = await fetch('/api/generate-video', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(clipData)
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    return {
-                        videoUrl: result.videoUrl,
-                        status: result.status || 'ready',
-                        message: result.message || 'Video ready'
-                    };
-                }
-            } catch (err) {
-                console.log('Veo API not available, preparing for manual generation');
-            }
+            // Store the prompt for manual generation if needed
+            clipData.generatedPrompt = prompt;
             
-            // Return pending status - video will need to be generated manually or via external tool
+            // For now, mark as ready for manual generation
+            // When Veo API becomes available via standard API key, this will auto-generate
+            const mode = clipData.lastFrameUrl ? 'img→img' : 'img→vid';
+            
             return {
                 videoUrl: null,
-                status: 'pending',
-                message: clipData.lastFrameUrl ? 'Ready for Veo (img→img)' : 'Ready for Veo (img→vid)'
+                status: 'ready',
+                message: `Ready (${mode})`,
+                prompt: prompt
+            };
+        }
+
+        function buildVideoPrompt(clipData) {
+            let prompt = clipData.prompt || 'Generate a video';
+            if (clipData.storyContext) {
+                prompt = `${prompt}\n\nContext: ${clipData.storyContext}`;
+            }
+            prompt += '\n\nStyle: Cinematic, smooth motion, high quality video.';
+            return prompt;
+        }
+
+        async function imageUrlToBase64(url) {
+            // If already base64, extract the data
+            if (url.startsWith('data:')) {
+                return url.split(',')[1];
+            }
+            // Fetch and convert to base64
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (err) {
+                console.error('Failed to convert image to base64:', err);
+                return null;
+            }
+        }
+
+        async function pollVeoOperation(operationName, maxAttempts = 60) {
+            // Poll for operation completion (videos can take a while)
+            for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds between polls
+                
+                try {
+                    const response = await fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${GEMINI_API_KEY}`
+                    );
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        
+                        if (result.done) {
+                            if (result.response?.generatedSamples?.[0]?.video?.uri) {
+                                return {
+                                    videoUrl: result.response.generatedSamples[0].video.uri,
+                                    status: 'ready',
+                                    message: 'Video generated!'
+                                };
+                            } else if (result.error) {
+                                return {
+                                    videoUrl: null,
+                                    status: 'error',
+                                    message: result.error.message || 'Generation failed'
+                                };
+                            }
+                        }
+                        // Still processing, continue polling
+                    }
+                } catch (err) {
+                    console.error('Poll error:', err);
+                }
+            }
+            
+            return {
+                videoUrl: null,
+                status: 'timeout',
+                message: 'Generation timed out'
             };
         }
 
@@ -1128,6 +1198,56 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         }
 
         // Send to Editor - transfers storyboard and clips to the editing tab
+        function copyVideoPrompt(sceneIndex) {
+            const clip = generatedVideoClips.find(c => c.sceneIndex === sceneIndex);
+            if (!clip) return;
+            
+            const prompt = clip.prompt || clip.generatedPrompt || `Generate a ${clip.duration}s video: ${clip.prompt}`;
+            
+            navigator.clipboard.writeText(prompt).then(() => {
+                showToast('Prompt copied! Paste in Google Veo or AI Studio', 'success');
+            }).catch(err => {
+                // Fallback: show prompt in alert
+                alert('Video Prompt:\n\n' + prompt);
+            });
+        }
+
+        function uploadVideoClip(sceneIndex) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // Create object URL for the video
+                const videoUrl = URL.createObjectURL(file);
+                
+                // Update the clip data
+                const clipIndex = generatedVideoClips.findIndex(c => c.sceneIndex === sceneIndex);
+                if (clipIndex >= 0) {
+                    generatedVideoClips[clipIndex].videoUrl = videoUrl;
+                    generatedVideoClips[clipIndex].videoFile = file;
+                    generatedVideoClips[clipIndex].status = 'ready';
+                }
+                
+                // Update the UI
+                const card = document.querySelector(`.video-clip-card[data-scene-index="${sceneIndex}"]`);
+                const preview = card?.querySelector('.clip-preview');
+                if (preview) {
+                    preview.innerHTML = `
+                        <video src="${videoUrl}" controls style="width:100%;height:100%;object-fit:cover;"></video>
+                    `;
+                }
+                
+                showToast(`Video uploaded for Scene ${sceneIndex + 1}`, 'success');
+                
+                // Save updated clips
+                await saveVideoClipsToProject();
+            };
+            input.click();
+        }
+
         function sendToEditor() {
             if (!currentStoryboard || generatedVideoClips.length === 0) {
                 showToast('Generate video clips first', 'error');
