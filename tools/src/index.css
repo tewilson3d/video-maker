@@ -1778,3 +1778,28 @@ button:disabled {
 .status-error .card-image {
   border: 2px solid #ef4444;
 }
+
+/* Project Controls */
+.project-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-project {
+  padding: 0.5rem 0.75rem;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-project:hover {
+  background: #2a2a3e;
+  border-color: #6366f1;
+}

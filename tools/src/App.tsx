@@ -5,7 +5,9 @@ import Canvas from './components/Canvas';
 import Timeline from './components/Timeline';
 import Prompting from './components/Prompting';
 import Storyboard from './components/Storyboard';
+import ProjectControls from './components/ProjectControls';
 import { useEditorStore } from './store';
+import { Project } from './types';
 import { 
   generateProjectFromStoryboard, 
   exportStoryboardJSON, 
@@ -352,6 +354,51 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
     downloadJSON(json, 'storyboard.json');
   };
 
+  // Load project handler
+  const handleLoadProject = (data: { project?: Project; storyboard?: StoryboardData }) => {
+    if (data.storyboard) {
+      setStoryboardData(data.storyboard);
+      // If storyboard has scenes with images, go to storyboard tab
+      if (data.storyboard.scenes.some(s => s.imageUrl)) {
+        setActiveTab('storyboard');
+      }
+    }
+    if (data.project) {
+      setProject(data.project);
+      setActiveTab('editing');
+    }
+  };
+
+  // Save project handler
+  const handleSaveProject = async () => {
+    let path = projectPath;
+    if (!path) {
+      path = prompt('Enter project path:', '/home/exedev/video-maker/projects/my-project') || '';
+      if (!path) return;
+      setProjectPath(path);
+      localStorage.setItem('projectPath', path);
+    }
+
+    try {
+      // Save storyboard data
+      await fetch('/api/save-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectPath: path,
+          storyPrompt: storyboardData.storyPrompt,
+          characters: storyboardData.characters,
+          scenes: storyboardData.scenes,
+          settings: storyboardData.settings,
+          project: project
+        })
+      });
+      alert(`Project saved to ${path}`);
+    } catch (error) {
+      alert(`Failed to save: ${error}`);
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -395,6 +442,15 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
         <div className="app-brand">
           <h1>🎬 Video Editor</h1>
         </div>
+        <ProjectControls
+          onLoadProject={handleLoadProject}
+          onSaveProject={handleSaveProject}
+          projectPath={projectPath}
+          setProjectPath={(path) => {
+            setProjectPath(path);
+            localStorage.setItem('projectPath', path);
+          }}
+        />
         <nav className="app-tabs">
           <button
             className={`tab-btn ${activeTab === 'prompting' ? 'active' : ''}`}
