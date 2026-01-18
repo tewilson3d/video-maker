@@ -5,9 +5,9 @@ import { Project } from '../types';
 // TODO: Move API Key to environment variable or configuration
 const apiKey = "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"; // Add your OpenAI API key here
 
-const systemPrompt = `You are an AI assistant that helps users edit video projects in FrameForge video editor. Your task is to interpret user commands and modify the provided project JSON to implement the requested changes.
+const systemPrompt = `You are an AI assistant that helps users edit video projects in Video Editor video editor. Your task is to interpret user commands and modify the provided project JSON to implement the requested changes.
 
-## FrameForge Project Structure
+## Video Editor Project Structure
 
 You will receive a JSON project with this structure:
 - \`assets\`: Array of video, audio, and image assets
