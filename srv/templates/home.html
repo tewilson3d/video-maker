@@ -933,6 +933,234 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             openSceneEditor(index);
         }
 
+        // Video Clips Generation
+        let generatedVideoClips = [];
+
+        document.getElementById('generateClipsBtn')?.addEventListener('click', generateVideoClips);
+
+        async function generateVideoClips() {
+            if (!currentStoryboard || !currentStoryboard.scenes || currentStoryboard.scenes.length === 0) {
+                showToast('No storyboard scenes to generate videos from', 'error');
+                return;
+            }
+
+            // Get scenes to generate - selected ones or all
+            let scenesToGenerate = [];
+            if (selectedScenes && selectedScenes.size > 0) {
+                scenesToGenerate = Array.from(selectedScenes).map(i => ({
+                    index: i,
+                    scene: currentStoryboard.scenes[i]
+                }));
+            } else {
+                scenesToGenerate = currentStoryboard.scenes.map((scene, i) => ({
+                    index: i,
+                    scene: scene
+                }));
+            }
+
+            const btn = document.getElementById('generateClipsBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+
+            // Show video clips grid with loading state
+            const grid = document.getElementById('videoClipsGrid');
+            grid.innerHTML = scenesToGenerate.map(({index, scene}) => `
+                <div class="video-clip-card" data-scene-index="${index}">
+                    <div class="clip-preview generating">
+                        <div class="clip-loading">
+                            <div class="clip-spinner"></div>
+                            <span>Preparing Scene ${index + 1}...</span>
+                        </div>
+                    </div>
+                    <div class="clip-info">
+                        <span class="clip-title">Scene ${index + 1}</span>
+                        <span class="clip-duration">${scene.duration || 5}s</span>
+                    </div>
+                </div>
+            `).join('');
+
+            generatedVideoClips = [];
+
+            // Process each scene
+            for (const {index, scene} of scenesToGenerate) {
+                const card = grid.querySelector(`[data-scene-index="${index}"]`);
+                const preview = card?.querySelector('.clip-preview');
+                const loading = card?.querySelector('.clip-loading span');
+                
+                if (loading) loading.textContent = `Generating Scene ${index + 1}...`;
+
+                try {
+                    // Prepare Veo 3 request data
+                    const clipData = await prepareVideoClipData(index, scene);
+                    
+                    // Try to generate with Veo 3 if API is available
+                    const videoResult = await generateVideoWithVeo(clipData);
+                    
+                    generatedVideoClips.push({
+                        sceneIndex: index,
+                        ...clipData,
+                        videoUrl: videoResult.videoUrl,
+                        status: videoResult.status
+                    });
+
+                    // Update card with result
+                    if (preview) {
+                        preview.classList.remove('generating');
+                        if (videoResult.videoUrl) {
+                            preview.innerHTML = `
+                                <video src="${videoResult.videoUrl}" poster="${scene.imageUrl}" controls style="width:100%;height:100%;object-fit:cover;"></video>
+                            `;
+                        } else {
+                            preview.innerHTML = `
+                                <img src="${scene.imageUrl}" alt="Scene ${index + 1}" style="width:100%;height:100%;object-fit:cover;">
+                                <div class="clip-status ${videoResult.status}">${videoResult.message}</div>
+                            `;
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to generate video for scene ${index + 1}:`, err);
+                    if (preview) {
+                        preview.classList.remove('generating');
+                        preview.innerHTML = `
+                            <img src="${scene.imageUrl}" alt="Scene ${index + 1}" style="width:100%;height:100%;object-fit:cover;opacity:0.5;">
+                            <div class="clip-status error">Failed: ${err.message}</div>
+                        `;
+                    }
+                    generatedVideoClips.push({
+                        sceneIndex: index,
+                        status: 'error',
+                        error: err.message
+                    });
+                }
+            }
+
+            btn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+
+            // Save clips data to project
+            await saveVideoClipsToProject();
+
+            const successCount = generatedVideoClips.filter(c => c.status === 'ready' || c.status === 'pending').length;
+            showToast(`Generated ${successCount}/${scenesToGenerate.length} video clips`, successCount > 0 ? 'success' : 'info');
+        }
+
+        async function prepareVideoClipData(index, scene) {
+            return {
+                sceneIndex: index,
+                sceneId: scene.id || `scene_${index + 1}`,
+                prompt: scene.narration || scene.description || '',
+                firstFrameUrl: scene.imageUrl,
+                lastFrameUrl: scene.lastFrameUrl || null,
+                duration: scene.duration || 5,
+                storyContext: currentStoryboard.storyPrompt,
+                aspectRatio: '16:9',
+                fps: 24
+            };
+        }
+
+        async function generateVideoWithVeo(clipData) {
+            // Check if we have Veo API configured (future integration)
+            // For now, prepare the data and mark as pending for manual generation
+            
+            // Try to call Veo 3 API if available
+            try {
+                const response = await fetch('/api/generate-video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clipData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    return {
+                        videoUrl: result.videoUrl,
+                        status: result.status || 'ready',
+                        message: result.message || 'Video ready'
+                    };
+                }
+            } catch (err) {
+                console.log('Veo API not available, preparing for manual generation');
+            }
+            
+            // Return pending status - video will need to be generated manually or via external tool
+            return {
+                videoUrl: null,
+                status: 'pending',
+                message: clipData.lastFrameUrl ? 'Ready for Veo (img→img)' : 'Ready for Veo (img→vid)'
+            };
+        }
+
+        async function saveVideoClipsToProject() {
+            let projectPath = PROJECT_SETTINGS.projectPath || PROJECT_PATH;
+            if (!projectPath || projectPath === '/home/exedev/video-maker/projects') {
+                // Auto-generate project path
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                projectPath = `/home/exedev/video-maker/projects/project-${timestamp}`;
+                PROJECT_PATH = projectPath;
+                PROJECT_SETTINGS.projectPath = projectPath;
+                localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
+            }
+
+            try {
+                // Save the video clips data to the project
+                await fetch('/api/save-video-clips', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectPath: projectPath,
+                        storyboard: {
+                            storyPrompt: currentStoryboard.storyPrompt,
+                            characters: currentStoryboard.characters || [],
+                            scenes: currentStoryboard.scenes
+                        },
+                        videoClips: generatedVideoClips
+                    })
+                });
+                console.log('Video clips saved to:', projectPath);
+            } catch (err) {
+                console.error('Failed to save video clips:', err);
+            }
+        }
+
+        // Send to Editor - transfers storyboard and clips to the editing tab
+        function sendToEditor() {
+            if (!currentStoryboard || generatedVideoClips.length === 0) {
+                showToast('Generate video clips first', 'error');
+                return;
+            }
+
+            // Prepare project data for the editor
+            const editorProject = {
+                name: 'Storyboard Project',
+                fps: 30,
+                canvasWidth: 1920,
+                canvasHeight: 1080,
+                storyPrompt: currentStoryboard.storyPrompt,
+                scenes: currentStoryboard.scenes.map((scene, i) => ({
+                    ...scene,
+                    clip: generatedVideoClips.find(c => c.sceneIndex === i)
+                }))
+            };
+
+            // Send to iframe editor via postMessage
+            const editorFrame = document.getElementById('editorFrame');
+            if (editorFrame && editorFrame.contentWindow) {
+                editorFrame.contentWindow.postMessage({
+                    type: 'LOAD_STORYBOARD_PROJECT',
+                    project: editorProject
+                }, '*');
+            }
+
+            // Switch to editing tab
+            switchMainTab('editing');
+            showToast('Project sent to editor', 'success');
+        }
+
         function scrollToScene(index) {
             const card = document.querySelector(`[data-scene-index="${index}"]`);
             if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -2899,3 +2899,106 @@ footer {
         transform: rotate(90deg);
     }
 }
+
+/* Video Clip Generation Styles */
+.clip-preview {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.clip-preview.generating {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2a2a4e 100%);
+}
+
+.clip-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.clip-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.clip-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+}
+
+.clip-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.clip-duration {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding: 0.2rem 0.5rem;
+    background: var(--bg-primary);
+    border-radius: 4px;
+}
+
+.clip-status {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+}
+
+.clip-status.pending {
+    background: rgba(99, 102, 241, 0.8);
+}
+
+.clip-status.ready {
+    background: rgba(34, 197, 94, 0.8);
+}
+
+.clip-status.error {
+    background: rgba(239, 68, 68, 0.8);
+}
+
+.video-clips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.video-placeholder {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    text-align: center;
+    gap: 0.5rem;
+}
+
+.placeholder-icon {
+    font-size: 2rem;
+    opacity: 0.5;
+}

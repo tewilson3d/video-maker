@@ -274,6 +274,67 @@ func (s *Server) HandleSaveKeyframe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Save video clips to project
+type SaveVideoClipsRequest struct {
+	ProjectPath string                 `json:"projectPath"`
+	Storyboard  map[string]interface{} `json:"storyboard"`
+	VideoClips  []interface{}          `json:"videoClips"`
+}
+
+func (s *Server) HandleSaveVideoClips(w http.ResponseWriter, r *http.Request) {
+	var req SaveVideoClipsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.ProjectPath == "" {
+		http.Error(w, "Project path is required", http.StatusBadRequest)
+		return
+	}
+
+	// Create project directory
+	if err := os.MkdirAll(req.ProjectPath, 0755); err != nil {
+		http.Error(w, "Failed to create project directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create videos directory
+	videosDir := filepath.Join(req.ProjectPath, "videos")
+	if err := os.MkdirAll(videosDir, 0755); err != nil {
+		http.Error(w, "Failed to create videos directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Save video clips JSON for the editor
+	clipsData := map[string]interface{}{
+		"storyboard":  req.Storyboard,
+		"videoClips":  req.VideoClips,
+		"generatedAt": time.Now().Format(time.RFC3339),
+	}
+
+	clipsJSON, err := json.MarshalIndent(clipsData, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to serialize clips data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	clipsPath := filepath.Join(req.ProjectPath, "video-clips.json")
+	if err := os.WriteFile(clipsPath, clipsJSON, 0644); err != nil {
+		http.Error(w, "Failed to save clips file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("saved video clips", "path", clipsPath, "clips", len(req.VideoClips))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success":   true,
+		"path":      clipsPath,
+		"clipCount": len(req.VideoClips),
+	})
+}
+
 // Video clip generation types
 type VideoClipRequest struct {
 	ProjectID string       `json:"projectId"`
@@ -1026,6 +1087,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
 	mux.HandleFunc("POST /api/save-keyframe", s.HandleSaveKeyframe)
+	mux.HandleFunc("POST /api/save-video-clips", s.HandleSaveVideoClips)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
 	mux.HandleFunc("GET /api/browse-folders", s.HandleBrowseFolders)
 	
