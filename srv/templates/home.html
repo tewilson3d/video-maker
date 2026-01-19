@@ -58,17 +58,22 @@
                                 
                                 <div id="apikeyTab" class="tab-content active">
                                     <div class="setup-steps">
-                                        <h4>Get your Gemini API Key:</h4>
+                                        <h4>Get your API Keys:</h4>
                                         <ol>
                                             <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
                                             <li>Click <strong>"Create API Key"</strong></li>
-                                            <li>Copy the API key</li>
+                                            <li>Copy the API key(s)</li>
                                         </ol>
                                     </div>
-                                    <div class="client-id-input">
-                                        <label>Paste your Gemini API Key:</label>
+                                    <div class="client-id-input" style="margin-bottom: 1rem;">
+                                        <label>🎨 Gemini API Key (for images):</label>
                                         <input type="password" id="apiKeyInput" placeholder="AIza...">
-                                        <span class="hint">Starts with AIza...</span>
+                                        <span class="hint">Used for image generation with Imagen</span>
+                                    </div>
+                                    <div class="client-id-input">
+                                        <label>🎬 Veo API Key (for videos):</label>
+                                        <input type="password" id="veoApiKeyInput" placeholder="AIza...">
+                                        <span class="hint">Used for video generation with Veo 3 (may require Vertex AI access)</span>
                                     </div>
                                 </div>
                                 
@@ -257,7 +262,7 @@
             <div class="right-column">
                 <div class="prompt-section">
                     <div class="section-header">
-                        <h2>🎬 Storyboard Keyframes</h2>
+                        <h2>🎬 Keyframe Prompts</h2>
                     </div>
                     
                     <!-- Shot Sequence Input -->
@@ -327,6 +332,7 @@
                         <button class="btn-secondary btn-sm" onclick="selectAllScenes()" title="Select All">☑️ All</button>
                         <button class="btn-secondary btn-sm" onclick="clearSelection()" title="Clear Selection">✖️ Clear</button>
                         <button class="btn-secondary" onclick="regenerateStoryboard()">🔄 Regenerate</button>
+                        <button class="btn-primary" onclick="generateAllVideosWithVeo()">🎬 Generate with Veo 3</button>
                         <button class="btn-secondary" onclick="exportStoryboard()">📤 Export</button>
                     </div>
                 </div>
@@ -340,16 +346,13 @@
                         <h3>🎬 Video Clips</h3>
                         <div class="video-actions">
                             <button class="btn-generate-video" id="generateClipsBtn">
-                                <span class="btn-text">✨ Prepare for Veo</span>
-                                <span class="btn-loading" style="display: none;">Preparing...</span>
+                                <span class="btn-text">🎬 Generate with Veo 3</span>
+                                <span class="btn-loading" style="display: none;">Generating...</span>
                             </button>
-                            <a href="https://aistudio.google.com" target="_blank" class="btn-secondary btn-external">
-                                🌐 Open AI Studio
-                            </a>
                         </div>
                     </div>
                     <p class="video-help-text" style="margin: 0 0 1rem; font-size: 0.85rem; color: #888;">
-                        💡 Click "Prepare for Veo" to generate prompts, then use AI Studio or upload videos manually.
+                        💡 Click "Generate with Veo 3" to create AI video clips from your storyboard images.
                     </p>
                     <div class="video-clips-grid" id="videoClipsGrid">
                         <div class="video-placeholder">
@@ -538,11 +541,11 @@
             </div>
         </div>
 
-        <!-- Scene Editor Modal -->
+        <!-- Keyframe Editor Modal -->
         <div id="sceneEditorModal" class="modal-overlay" style="display: none;">
             <div class="modal-content" style="max-width: 900px; width: 95%;">
                 <div class="modal-header">
-                    <h3>🎬 <span id="sceneEditorTitle">Scene 1</span></h3>
+                    <h3>🎬 <span id="sceneEditorTitle">Keyframe 1</span></h3>
                     <button class="modal-close" onclick="closeSceneEditor()">✕</button>
                 </div>
                 <div class="modal-body" style="padding: 1.5rem;">
@@ -589,15 +592,15 @@
                         </div>
                     </div>
                     
-                    <!-- Scene Description -->
+                    <!-- Keyframe Description -->
                     <div style="margin-bottom: 1rem;">
-                        <h4 style="margin: 0 0 0.5rem; font-size: 0.95rem; color: #e0e0e0;">📝 Scene Description</h4>
+                        <h4 style="margin: 0 0 0.5rem; font-size: 0.95rem; color: #e0e0e0;">📝 Keyframe Description</h4>
                         <textarea id="sceneDescriptionInput" placeholder="Describe the motion/action for this scene..." rows="2" style="width: 100%; padding: 0.75rem; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; color: #e0e0e0; font-size: 0.9rem; resize: vertical;"></textarea>
                         <span style="font-size: 0.8rem; color: #666;">This guides Veo 3's video generation</span>
                     </div>
                     
                     <!-- Duration -->
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
                         <label style="font-size: 0.9rem; color: #888;">⏱️ Duration:</label>
                         <select id="sceneDuration" style="padding: 0.5rem 0.75rem; background: #1a1a2e; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; font-size: 0.85rem;">
                             <option value="3">3 seconds</option>
@@ -605,6 +608,25 @@
                             <option value="8">8 seconds</option>
                             <option value="10">10 seconds</option>
                         </select>
+                    </div>
+                    
+                    <!-- Video Clip Preview -->
+                    <div id="videoClipSection" style="border-top: 1px solid #333; padding-top: 1.5rem;">
+                        <h4 style="margin: 0 0 0.75rem; font-size: 1rem; color: #e0e0e0;">🎬 Video Clip</h4>
+                        <div id="videoClipPreview" style="width: 100%; aspect-ratio: 16/9; background: #1a1a2e; border: 2px dashed #333; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                            <div id="videoClipPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; text-align: center; color: #666;">
+                                <span style="font-size: 2rem; opacity: 0.5;">🎬</span>
+                                <p style="margin: 0.5rem 0 0; font-size: 0.85rem;">No video clip yet</p>
+                                <small style="font-size: 0.75rem; opacity: 0.7;">Generate with Veo 3 or upload manually</small>
+                            </div>
+                            <video id="videoClipPlayer" src="" controls style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                            <button class="btn-primary" onclick="generateKeyframeVideo()" style="flex: 1; padding: 0.5rem;">🎬 Generate with Veo 3</button>
+                            <button class="btn-secondary" onclick="uploadVideoClipForKeyframe()" style="padding: 0.5rem;">📁 Upload</button>
+                            <button class="btn-secondary" id="removeVideoClipBtn" onclick="removeVideoClip()" style="padding: 0.5rem; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; display: none;">🗑️</button>
+                        </div>
+                        <input type="file" id="videoClipInput" accept="video/*" style="display: none;">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -645,7 +667,8 @@
         // Google API Configuration
         // Load from localStorage or prompt user to configure
         let GOOGLE_CLIENT_ID = localStorage.getItem('googleClientId') || '';
-        let GEMINI_API_KEY = localStorage.getItem('geminiApiKey') || '';
+        let GEMINI_API_KEY = localStorage.getItem('geminiApiKey') || 'AIzaSyAKXjB3cNipPqKaRXu_mZbXCX3Tv1LyG70';
+        let VEO_API_KEY = localStorage.getItem('veoApiKey') || 'AIzaSyA3Wc14XeZhQNbsLqCANarEeB4wf_H2D74';
         
         let googleUser = null;
         let accessToken = null;
@@ -684,15 +707,19 @@
             grid.innerHTML = storyboardData.scenes.map((scene, index) => `
                 <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)" ondblclick="event.stopPropagation(); openSceneEditor(${index})">
                     <div class="card-header">
-                        <span class="scene-number">Scene ${index + 1}</span>
-                        ${scene.lastFrameUrl ? '<div class="last-frame-indicator" title="Has last frame for Veo interpolation">🎬↔️</div>' : ''}
+                        <span class="scene-number">Keyframe ${index + 1}</span>
+                        ${scene.videoUrl ? '<div class="video-indicator" title="Has video clip">🎬</div>' : ''}
+                        ${scene.lastFrameUrl ? '<div class="last-frame-indicator" title="Has last frame for Veo interpolation">↔️</div>' : ''}
                         <div class="card-actions">
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); openSceneEditor(${index})" title="Edit">✏️</button>
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
                         </div>
                     </div>
                     <div class="card-image">
-                        <img src="${scene.imageUrl || 'https://placehold.co/512x288/1a1a2e/ffffff?text=Scene+' + (index + 1)}" alt="Scene ${index + 1}">
+                        ${scene.videoUrl ? 
+                            `<video src="${scene.videoUrl}" muted loop playsinline style="width:100%;height:100%;object-fit:cover;" onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>` :
+                            `<img src="${scene.imageUrl || 'https://placehold.co/512x288/1a1a2e/ffffff?text=Keyframe+' + (index + 1)}" alt="Keyframe ${index + 1}">`
+                        }
                     </div>
                     <div class="card-content">
                         <p class="scene-narration">${scene.narration || scene.description || ''}</p>
@@ -715,6 +742,7 @@
         let sceneEditorData = {
             firstFrame: null,
             lastFrame: null,
+            videoUrl: null,
             description: '',
             duration: 5
         };
@@ -730,7 +758,7 @@
             const scene = currentStoryboard.scenes[index];
             
             // Set title
-            document.getElementById('sceneEditorTitle').textContent = `Scene ${index + 1}`;
+            document.getElementById('sceneEditorTitle').textContent = `Keyframe ${index + 1}`;
             
             // Set first frame
             const firstFrameImg = document.getElementById('firstFrameImg');
@@ -762,6 +790,25 @@
             // Set duration
             document.getElementById('sceneDuration').value = scene.duration || 5;
             sceneEditorData.duration = scene.duration || 5;
+            
+            // Set video clip if exists
+            const videoPlayer = document.getElementById('videoClipPlayer');
+            const videoPlaceholder = document.getElementById('videoClipPlaceholder');
+            const removeVideoBtn = document.getElementById('removeVideoClipBtn');
+            
+            if (scene.videoUrl) {
+                videoPlayer.src = scene.videoUrl;
+                videoPlayer.style.display = 'block';
+                videoPlaceholder.style.display = 'none';
+                removeVideoBtn.style.display = 'inline-block';
+                sceneEditorData.videoUrl = scene.videoUrl;
+            } else {
+                videoPlayer.src = '';
+                videoPlayer.style.display = 'none';
+                videoPlaceholder.style.display = 'flex';
+                removeVideoBtn.style.display = 'none';
+                sceneEditorData.videoUrl = null;
+            }
             
             // Show modal
             document.getElementById('sceneEditorModal').style.display = 'flex';
@@ -863,6 +910,95 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             sceneEditorData.lastFrame = null;
         }
 
+        // Video clip functions
+        async function generateKeyframeVideo() {
+            if (currentEditingSceneIndex === null || !currentStoryboard) return;
+            
+            const scene = currentStoryboard.scenes[currentEditingSceneIndex];
+            const clipData = await prepareVideoClipData(currentEditingSceneIndex, scene);
+            
+            // Show generating state
+            const videoPlayer = document.getElementById('videoClipPlayer');
+            const videoPlaceholder = document.getElementById('videoClipPlaceholder');
+            videoPlaceholder.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div class="clip-spinner" style="margin-bottom: 0.5rem;"></div>
+                    <span style="font-size: 0.85rem;">Generating with Veo 3...</span>
+                </div>
+            `;
+            videoPlaceholder.style.display = 'flex';
+            videoPlayer.style.display = 'none';
+            
+            try {
+                const result = await generateVideoWithVeo(clipData);
+                
+                if (result.videoUrl) {
+                    videoPlayer.src = result.videoUrl;
+                    videoPlayer.style.display = 'block';
+                    videoPlaceholder.style.display = 'none';
+                    document.getElementById('removeVideoClipBtn').style.display = 'inline-block';
+                    sceneEditorData.videoUrl = result.videoUrl;
+                    showToast('Video generated!', 'success');
+                } else {
+                    videoPlaceholder.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; color: #ef4444;">
+                            <span style="font-size: 2rem; opacity: 0.5;">⚠️</span>
+                            <p style="margin: 0.5rem 0 0; font-size: 0.85rem;">${result.message}</p>
+                        </div>
+                    `;
+                    showToast(result.message, 'error');
+                }
+            } catch (err) {
+                videoPlaceholder.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; color: #ef4444;">
+                        <span style="font-size: 2rem; opacity: 0.5;">⚠️</span>
+                        <p style="margin: 0.5rem 0 0; font-size: 0.85rem;">Generation failed</p>
+                    </div>
+                `;
+                showToast('Video generation failed: ' + err.message, 'error');
+            }
+        }
+
+        function uploadVideoClipForKeyframe() {
+            document.getElementById('videoClipInput').click();
+        }
+
+        document.getElementById('videoClipInput')?.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const videoUrl = URL.createObjectURL(file);
+            const videoPlayer = document.getElementById('videoClipPlayer');
+            const videoPlaceholder = document.getElementById('videoClipPlaceholder');
+            
+            videoPlayer.src = videoUrl;
+            videoPlayer.style.display = 'block';
+            videoPlaceholder.style.display = 'none';
+            document.getElementById('removeVideoClipBtn').style.display = 'inline-block';
+            sceneEditorData.videoUrl = videoUrl;
+            
+            e.target.value = '';
+            showToast('Video uploaded!', 'success');
+        });
+
+        function removeVideoClip() {
+            const videoPlayer = document.getElementById('videoClipPlayer');
+            const videoPlaceholder = document.getElementById('videoClipPlaceholder');
+            
+            videoPlayer.src = '';
+            videoPlayer.style.display = 'none';
+            videoPlaceholder.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; text-align: center; color: #666;">
+                    <span style="font-size: 2rem; opacity: 0.5;">🎬</span>
+                    <p style="margin: 0.5rem 0 0; font-size: 0.85rem;">No video clip yet</p>
+                    <small style="font-size: 0.75rem; opacity: 0.7;">Generate with Veo 3 or upload manually</small>
+                </div>
+            `;
+            videoPlaceholder.style.display = 'flex';
+            document.getElementById('removeVideoClipBtn').style.display = 'none';
+            sceneEditorData.videoUrl = null;
+        }
+
         function saveSceneChanges() {
             if (currentEditingSceneIndex === null || !currentStoryboard) return;
             
@@ -871,6 +1007,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             // Update scene data
             scene.imageUrl = sceneEditorData.firstFrame;
             scene.lastFrameUrl = sceneEditorData.lastFrame;
+            scene.videoUrl = sceneEditorData.videoUrl;
             scene.narration = document.getElementById('sceneDescriptionInput').value;
             scene.description = document.getElementById('sceneDescriptionInput').value;
             scene.duration = parseInt(document.getElementById('sceneDuration').value);
@@ -878,13 +1015,31 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             // Update the card in the UI
             const card = document.querySelector(`.storyboard-card[data-scene-index="${currentEditingSceneIndex}"]`);
             if (card) {
-                const img = card.querySelector('.card-image img');
-                if (img && sceneEditorData.firstFrame) {
-                    img.src = sceneEditorData.firstFrame;
+                const cardImage = card.querySelector('.card-image');
+                if (cardImage) {
+                    if (scene.videoUrl) {
+                        cardImage.innerHTML = `<video src="${scene.videoUrl}" muted loop playsinline style="width:100%;height:100%;object-fit:cover;" onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>`;
+                    } else if (sceneEditorData.firstFrame) {
+                        cardImage.innerHTML = `<img src="${sceneEditorData.firstFrame}" alt="Keyframe ${currentEditingSceneIndex + 1}">`;
+                    }
                 }
                 const narration = card.querySelector('.scene-narration');
                 if (narration) {
                     narration.textContent = scene.narration;
+                }
+                
+                // Add video indicator
+                let videoIndicator = card.querySelector('.video-indicator');
+                if (scene.videoUrl) {
+                    if (!videoIndicator) {
+                        videoIndicator = document.createElement('div');
+                        videoIndicator.className = 'video-indicator';
+                        videoIndicator.innerHTML = '🎬';
+                        videoIndicator.title = 'Has video clip';
+                        card.querySelector('.card-header').insertBefore(videoIndicator, card.querySelector('.card-actions'));
+                    }
+                } else if (videoIndicator) {
+                    videoIndicator.remove();
                 }
                 
                 // Add indicator if has last frame
@@ -893,9 +1048,9 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                     if (!indicator) {
                         indicator = document.createElement('div');
                         indicator.className = 'last-frame-indicator';
-                        indicator.innerHTML = '🎬↔️';
+                        indicator.innerHTML = '↔️';
                         indicator.title = 'Has last frame for Veo interpolation';
-                        card.querySelector('.card-header').appendChild(indicator);
+                        card.querySelector('.card-header').insertBefore(indicator, card.querySelector('.card-actions'));
                     }
                 } else if (indicator) {
                     indicator.remove();
@@ -906,7 +1061,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             saveStoryboardToServerQuick();
             
             closeSceneEditor();
-            showToast('Scene saved!', 'success');
+            showToast('Keyframe saved!', 'success');
         }
 
         // Quick save without full project save
@@ -988,11 +1143,11 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                     <div class="clip-preview generating">
                         <div class="clip-loading">
                             <div class="clip-spinner"></div>
-                            <span>Preparing Scene ${index + 1}...</span>
+                            <span>Preparing Keyframe ${index + 1}...</span>
                         </div>
                     </div>
                     <div class="clip-info">
-                        <span class="clip-title">Scene ${index + 1}</span>
+                        <span class="clip-title">Keyframe ${index + 1}</span>
                         <span class="clip-duration">${scene.duration || 5}s</span>
                     </div>
                 </div>
@@ -1006,7 +1161,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 const preview = card?.querySelector('.clip-preview');
                 const loading = card?.querySelector('.clip-loading span');
                 
-                if (loading) loading.textContent = `Generating Scene ${index + 1}...`;
+                if (loading) loading.textContent = `Generating Keyframe ${index + 1}...`;
 
                 try {
                     // Prepare Veo 3 request data
@@ -1031,7 +1186,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                             `;
                         } else {
                             preview.innerHTML = `
-                                <img src="${scene.imageUrl}" alt="Scene ${index + 1}" style="width:100%;height:100%;object-fit:cover;">
+                                <img src="${scene.imageUrl}" alt="Keyframe ${index + 1}" style="width:100%;height:100%;object-fit:cover;">
                                 <div class="clip-status ${videoResult.status}">${videoResult.message}</div>
                                 <div class="clip-actions">
                                     <button onclick="copyVideoPrompt(${index})" title="Copy prompt for Veo">📋</button>
@@ -1041,11 +1196,11 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                         }
                     }
                 } catch (err) {
-                    console.error(`Failed to generate video for scene ${index + 1}:`, err);
+                    console.error(`Failed to generate video for keyframe ${index + 1}:`, err);
                     if (preview) {
                         preview.classList.remove('generating');
                         preview.innerHTML = `
-                            <img src="${scene.imageUrl}" alt="Scene ${index + 1}" style="width:100%;height:100%;object-fit:cover;opacity:0.5;">
+                            <img src="${scene.imageUrl}" alt="Keyframe ${index + 1}" style="width:100%;height:100%;object-fit:cover;opacity:0.5;">
                             <div class="clip-status error">Failed: ${err.message}</div>
                         `;
                     }
@@ -1089,94 +1244,101 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             
             const mode = clipData.lastFrameUrl ? 'img→img' : 'img→vid';
 
-            // Try to generate video using Veo 2 API
-            try {
-                // Convert first frame to base64 if needed
-                let imageBase64 = null;
-                if (clipData.firstFrameUrl) {
-                    imageBase64 = await imageUrlToBase64(clipData.firstFrameUrl);
-                }
-
-                // Call Veo 2 through Generative AI API
-                const requestBody = {
-                    instances: [{
-                        prompt: prompt
-                    }],
-                    parameters: {
-                        sampleCount: 1,
-                        aspectRatio: clipData.aspectRatio || '16:9',
-                        durationSeconds: Math.min(clipData.duration || 5, 8)
-                    }
+            // Check for Veo API key (fall back to Gemini key)
+            const veoKey = VEO_API_KEY || GEMINI_API_KEY;
+            if (!veoKey) {
+                return {
+                    videoUrl: null,
+                    status: 'error',
+                    message: 'Please configure your Veo API key first'
                 };
+            }
 
-                // Add image if available (for image-to-video)
-                if (imageBase64) {
-                    requestBody.instances[0].image = {
-                        bytesBase64Encoded: imageBase64
+            try {
+                // Convert first frame image to base64
+                const imageBase64 = await imageUrlToBase64(clipData.firstFrameUrl);
+                if (!imageBase64) {
+                    return {
+                        videoUrl: null,
+                        status: 'error',
+                        message: 'Failed to process image'
                     };
                 }
 
-                // Try veo-2.0-generate-001 model
-                const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${GEMINI_API_KEY}`,
+                // Call Veo 3 API via Gemini
+                const veoResponse = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${veoKey}`,
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody)
+                        body: JSON.stringify({
+                            instances: [{
+                                prompt: prompt,
+                                image: {
+                                    bytesBase64Encoded: imageBase64,
+                                    mimeType: 'image/png'
+                                }
+                            }],
+                            parameters: {
+                                aspectRatio: '16:9',
+                                sampleCount: 1,
+                                durationSeconds: clipData.duration || 5
+                            }
+                        })
                     }
                 );
 
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('Veo response:', result);
-                    
-                    // If we get an operation name, poll for completion
-                    if (result.name) {
-                        return await pollVeoOperation(result.name, clipData);
+                if (!veoResponse.ok) {
+                    const errData = await veoResponse.json().catch(() => ({}));
+                    console.error('Veo API error:', errData);
+                    let errorMsg = errData.error?.message || `Veo API error: ${veoResponse.status}`;
+                    if (veoResponse.status === 404) {
+                        errorMsg = 'Veo model not available - check API access';
+                    } else if (veoResponse.status === 403) {
+                        errorMsg = 'Veo access denied - API key may not have video generation enabled';
                     }
-                    
-                    // Direct response with video
-                    if (result.predictions?.[0]?.video) {
-                        return {
-                            videoUrl: result.predictions[0].video,
-                            status: 'ready',
-                            message: 'Video generated!'
-                        };
-                    }
+                    return {
+                        videoUrl: null,
+                        status: 'error',
+                        message: errorMsg
+                    };
                 }
 
-                const errorData = await response.json().catch(() => ({}));
-                console.log('Veo API response:', response.status, errorData);
-                
-                // If model not found or not authorized, fall back
-                if (response.status === 404 || response.status === 403 || response.status === 400) {
-                    console.log('Veo 2 not available, trying alternative...');
-                    return await tryAlternativeVideoGeneration(clipData, prompt, mode);
+                const veoResult = await veoResponse.json();
+                console.log('Veo response:', veoResult);
+
+                // Check if we got an operation to poll
+                if (veoResult.name) {
+                    // Poll for completion
+                    return await pollVeoOperation(veoResult.name, clipData, 120);
+                }
+
+                // Check for immediate result
+                if (veoResult.predictions?.[0]?.video) {
+                    const videoData = veoResult.predictions[0].video;
+                    if (videoData.uri) {
+                        return {
+                            videoUrl: videoData.uri,
+                            status: 'ready',
+                            message: 'Video generated with Veo 3!'
+                        };
+                    }
                 }
 
                 return {
                     videoUrl: null,
                     status: 'error',
-                    message: errorData.error?.message || `API error (${response.status})`
+                    message: 'Unexpected Veo response format'
                 };
-
+                
             } catch (err) {
-                console.error('Video generation error:', err);
-                return await tryAlternativeVideoGeneration(clipData, prompt, mode);
+                console.error('Veo generation error:', err);
+                return {
+                    videoUrl: null,
+                    status: 'error',
+                    message: 'Veo generation failed: ' + err.message
+                };
             }
-        }
-
-        async function tryAlternativeVideoGeneration(clipData, prompt, mode) {
-            // Try using Imagen 3 to generate video frames, then combine
-            // Or fall back to showing the prompt for manual generation
-            
-            return {
-                videoUrl: null,
-                status: 'pending',
-                message: `Ready for Veo (${mode})`,
-                prompt: prompt,
-                note: 'Veo API requires Vertex AI access. Use Copy Prompt to generate manually.'
-            };
         }
 
         function buildVideoPrompt(clipData) {
@@ -1212,6 +1374,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         async function pollVeoOperation(operationName, clipData, maxAttempts = 60) {
             // Poll for operation completion (videos can take 1-5 minutes)
             const mode = clipData?.lastFrameUrl ? 'img→img' : 'img→vid';
+            const veoKey = VEO_API_KEY || GEMINI_API_KEY;
             
             for (let i = 0; i < maxAttempts; i++) {
                 // Update UI with progress
@@ -1222,7 +1385,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 
                 try {
                     const response = await fetch(
-                        `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${GEMINI_API_KEY}`
+                        `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${veoKey}`
                     );
                     
                     if (response.ok) {
@@ -1393,7 +1556,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                     `;
                 }
                 
-                showToast(`Video uploaded for Scene ${sceneIndex + 1}`, 'success');
+                showToast(`Video uploaded for Keyframe ${sceneIndex + 1}`, 'success');
                 
                 // Save updated clips
                 await saveVideoClipsToProject();
@@ -1447,6 +1610,96 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
 
         function exportStoryboard() {
             alert('Export storyboard - coming soon!');
+        }
+
+        async function generateAllVideosWithVeo() {
+            if (!currentStoryboard || !currentStoryboard.scenes || currentStoryboard.scenes.length === 0) {
+                showToast('No keyframes to generate videos for', 'error');
+                return;
+            }
+
+            if (!GEMINI_API_KEY) {
+                showToast('Please configure your Gemini API key first', 'error');
+                return;
+            }
+
+            const scenes = currentStoryboard.scenes;
+            const total = scenes.length;
+            let completed = 0;
+            let failed = 0;
+
+            showToast(`Generating ${total} videos with Veo 3...`, 'info');
+
+            for (let index = 0; index < scenes.length; index++) {
+                const scene = scenes[index];
+                
+                // Skip if already has video
+                if (scene.videoUrl) {
+                    completed++;
+                    continue;
+                }
+
+                // Update card to show generating state
+                const card = document.querySelector(`.storyboard-card[data-scene-index="${index}"]`);
+                if (card) {
+                    const cardImage = card.querySelector('.card-image');
+                    if (cardImage) {
+                        cardImage.innerHTML = `
+                            <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1a1a2e;">
+                                <div class="clip-spinner"></div>
+                                <span style="margin-top:0.5rem;font-size:0.8rem;color:#888;">Generating...</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                try {
+                    const clipData = await prepareVideoClipData(index, scene);
+                    const result = await generateVideoWithVeo(clipData);
+
+                    if (result.videoUrl) {
+                        scene.videoUrl = result.videoUrl;
+                        completed++;
+                        
+                        // Update card with video
+                        if (card) {
+                            const cardImage = card.querySelector('.card-image');
+                            if (cardImage) {
+                                cardImage.innerHTML = `<video src="${result.videoUrl}" muted loop playsinline style="width:100%;height:100%;object-fit:cover;" onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>`;
+                            }
+                            // Add video indicator
+                            if (!card.querySelector('.video-indicator')) {
+                                const indicator = document.createElement('div');
+                                indicator.className = 'video-indicator';
+                                indicator.innerHTML = '🎬';
+                                indicator.title = 'Has video clip';
+                                card.querySelector('.card-header').insertBefore(indicator, card.querySelector('.card-actions'));
+                            }
+                        }
+                    } else {
+                        failed++;
+                        // Restore image on failure
+                        if (card) {
+                            const cardImage = card.querySelector('.card-image');
+                            if (cardImage) {
+                                cardImage.innerHTML = `<img src="${scene.imageUrl}" alt="Keyframe ${index + 1}" style="opacity:0.5;"><div style="position:absolute;bottom:0.5rem;left:0.5rem;right:0.5rem;background:rgba(239,68,68,0.9);color:white;padding:0.25rem 0.5rem;border-radius:4px;font-size:0.75rem;">${result.message}</div>`;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    failed++;
+                    console.error(`Failed to generate video for keyframe ${index + 1}:`, err);
+                }
+            }
+
+            // Save updated storyboard
+            saveStoryboardToServerQuick();
+
+            if (failed > 0) {
+                showToast(`Generated ${completed - (total - scenes.filter(s => !s.videoUrl).length)} videos, ${failed} failed`, 'warning');
+            } else {
+                showToast(`All ${completed} videos generated!`, 'success');
+            }
         }
 
         // Project Settings
@@ -1693,12 +1946,26 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         function saveApiConfig() {
             if (currentAuthTab === 'apikey') {
                 const apiKey = document.getElementById('apiKeyInput').value.trim();
+                const veoKey = document.getElementById('veoApiKeyInput').value.trim();
+                
                 if (!apiKey || !apiKey.startsWith('AIza')) {
                     alert('Please enter a valid Gemini API key (starts with AIza)');
                     return;
                 }
+                
                 GEMINI_API_KEY = apiKey;
                 localStorage.setItem('geminiApiKey', apiKey);
+                
+                // Save Veo key if provided
+                if (veoKey) {
+                    if (!veoKey.startsWith('AIza')) {
+                        alert('Veo API key should start with AIza');
+                        return;
+                    }
+                    VEO_API_KEY = veoKey;
+                    localStorage.setItem('veoApiKey', veoKey);
+                }
+                
                 closeOAuthSetup();
                 updateAuthDisplay();
             } else {
@@ -1708,10 +1975,11 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
 
         function updateAuthDisplay() {
             if (GEMINI_API_KEY) {
+                const veoStatus = VEO_API_KEY ? ' + Veo' : '';
                 document.getElementById('loginSection').innerHTML = `
                     <div class="auth-success">
                         <span>✅</span>
-                        <span>Gemini API Connected</span>
+                        <span>Gemini${veoStatus} Connected</span>
                         <button class="btn-logout" onclick="clearApiKey()" title="Disconnect">✕</button>
                     </div>
                 `;
@@ -1727,7 +1995,9 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
 
         function clearApiKey() {
             GEMINI_API_KEY = '';
+            VEO_API_KEY = '';
             localStorage.removeItem('geminiApiKey');
+            localStorage.removeItem('veoApiKey');
             updateAuthDisplay();
         }
 
@@ -1855,9 +2125,15 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
 
         // Configure OAuth button
         document.getElementById('configureOAuthBtn')?.addEventListener('click', () => {
-            document.getElementById('oauthSetupModal').style.display = 'flex';
-            document.getElementById('clientIdInput').value = GOOGLE_CLIENT_ID || '';
+            openApiSettings();
         });
+        
+        function openApiSettings() {
+            document.getElementById('oauthSetupModal').style.display = 'flex';
+            document.getElementById('apiKeyInput').value = GEMINI_API_KEY || '';
+            document.getElementById('veoApiKeyInput').value = VEO_API_KEY || '';
+            document.getElementById('clientIdInput').value = GOOGLE_CLIENT_ID || '';
+        }
 
         function closeOAuthSetup() {
             document.getElementById('oauthSetupModal').style.display = 'none';
@@ -1972,7 +2248,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             card.dataset.index = keyframeCount - 1;
             card.innerHTML = `
                 <div class="keyframe-header">
-                    <span class="keyframe-number">Scene ${keyframeCount}</span>
+                    <span class="keyframe-number">Keyframe ${keyframeCount}</span>
                     <button type="button" class="btn-icon-small btn-remove-keyframe" title="Remove">✕</button>
                 </div>
                 <textarea 
@@ -2026,7 +2302,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         function renumberKeyframes() {
             const keyframes = keyframeContainer.querySelectorAll('.keyframe-card');
             keyframes.forEach((kf, i) => {
-                kf.querySelector('.keyframe-number').textContent = `Scene ${i + 1}`;
+                kf.querySelector('.keyframe-number').textContent = `Keyframe ${i + 1}`;
             });
             keyframeCount = keyframes.length;
         }
@@ -3147,7 +3423,7 @@ Story context: ${storyContext}`;
             grid.innerHTML = storyboardData.scenes.map((scene, index) => `
                 <div class="storyboard-card" data-scene-index="${index}" onclick="toggleSceneSelection(${index}, event)" ondblclick="event.stopPropagation(); openSceneEditor(${index})">
                     <div class="card-header">
-                        <span class="scene-number">Scene ${index + 1}</span>
+                        <span class="scene-number">Keyframe ${index + 1}</span>
                         <div class="card-actions">
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); openSceneEditor(${index})" title="Edit">✏️</button>
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
@@ -3263,7 +3539,7 @@ Story context: ${storyContext}`;
             const cardImage = card.querySelector('.card-image');
             if (cardImage) {
                 cardImage.className = 'card-image';
-                cardImage.innerHTML = `<img src="${imageUrl}" alt="Scene ${index + 1}">`;
+                cardImage.innerHTML = `<img src="${imageUrl}" alt="Keyframe ${index + 1}">`;
             }
             
             // Update timeline

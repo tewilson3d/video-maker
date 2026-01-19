@@ -1,0 +1,53 @@
+{
+  "generatedAt": "2026-01-18T08:29:25Z",
+  "storyboard": {
+    "characters": [],
+    "scenes": [
+      {
+        "duration": 5,
+        "id": "scene_1",
+        "imageUrl": "https://placehold.co/512x288/1a1a2e/ffffff?text=Scene+1",
+        "lastFrameUrl": null,
+        "narration": "The knight prepares for battle at sunrise"
+      },
+      {
+        "duration": 5,
+        "id": "scene_2",
+        "imageUrl": "https://placehold.co/512x288/2a1a3e/ffffff?text=Scene+2",
+        "lastFrameUrl": "https://placehold.co/512x288/3a1a4e/ffffff?text=End",
+        "narration": "Journey through the dark forest"
+      }
+    ],
+    "storyPrompt": "A knight's epic journey to defeat the dragon"
+  },
+  "videoClips": [
+    {
+      "aspectRatio": "16:9",
+      "duration": 5,
+      "firstFrameUrl": "https://placehold.co/512x288/1a1a2e/ffffff?text=Scene+1",
+      "fps": 24,
+      "generatedPrompt": "The knight prepares for battle at sunrise\n\nContext: A knight's epic journey to defeat the dragon\n\nStyle: Cinematic, smooth motion, high quality video.",
+      "lastFrameUrl": null,
+      "prompt": "The knight prepares for battle at sunrise",
+      "sceneId": "scene_1",
+      "sceneIndex": 0,
+      "status": "ready",
+      "storyContext": "A knight's epic journey to defeat the dragon",
+      "videoUrl": null
+    },
+    {
+      "aspectRatio": "16:9",
+      "duration": 5,
+      "firstFrameUrl": "https://placehold.co/512x288/2a1a3e/ffffff?text=Scene+2",
+      "fps": 24,
+      "generatedPrompt": "Journey through the dark forest\n\nContext: A knight's epic journey to defeat the dragon\n\nStyle: Cinematic, smooth motion, high quality video.",
+      "lastFrameUrl": "https://placehold.co/512x288/3a1a4e/ffffff?text=End",
+      "prompt": "Journey through the dark forest",
+      "sceneId": "scene_2",
+      "sceneIndex": 1,
+      "status": "ready",
+      "storyContext": "A knight's epic journey to defeat the dragon",
+      "videoUrl": null
+    }
+  ]
+}

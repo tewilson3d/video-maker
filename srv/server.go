@@ -401,10 +401,159 @@ func (s *Server) HandleGenerateVideoClips(w http.ResponseWriter, r *http.Request
 }
 
 func generatePlaceholderVideo(sceneIndex int) string {
-	// Return a placeholder video URL
-	// In production, this would be the actual Veo 3 generated video
-	// Using a sample video for demo purposes
 	return fmt.Sprintf("https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4#scene=%d", sceneIndex)
+}
+
+// Actual video generation using FFmpeg
+type GenerateVideoRequest struct {
+	ProjectPath    string `json:"projectPath"`
+	SceneIndex     int    `json:"sceneIndex"`
+	FirstFrameURL  string `json:"firstFrameUrl"`
+	LastFrameURL   string `json:"lastFrameUrl"`
+	Duration       int    `json:"duration"`
+	Prompt         string `json:"prompt"`
+}
+
+func (s *Server) HandleGenerateVideo(w http.ResponseWriter, r *http.Request) {
+	var req GenerateVideoRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.FirstFrameURL == "" {
+		http.Error(w, "First frame URL is required", http.StatusBadRequest)
+		return
+	}
+
+	if req.Duration <= 0 {
+		req.Duration = 5
+	}
+
+	// Create output directory
+	outputDir := filepath.Join(req.ProjectPath, "videos")
+	if req.ProjectPath == "" {
+		outputDir = filepath.Join(os.TempDir(), "video-maker-clips")
+	}
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		http.Error(w, "Failed to create output directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Download first frame
+	firstFramePath := filepath.Join(outputDir, fmt.Sprintf("scene_%d_first.png", req.SceneIndex))
+	if err := downloadImage(req.FirstFrameURL, firstFramePath); err != nil {
+		http.Error(w, "Failed to download first frame: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Download last frame if provided
+	lastFramePath := ""
+	if req.LastFrameURL != "" {
+		lastFramePath = filepath.Join(outputDir, fmt.Sprintf("scene_%d_last.png", req.SceneIndex))
+		if err := downloadImage(req.LastFrameURL, lastFramePath); err != nil {
+			slog.Warn("Failed to download last frame", "error", err)
+			lastFramePath = ""
+		}
+	}
+
+	// Generate video
+	outputPath := filepath.Join(outputDir, fmt.Sprintf("scene_%d.mp4", req.SceneIndex))
+	if err := generateVideoWithFFmpeg(firstFramePath, lastFramePath, outputPath, req.Duration); err != nil {
+		http.Error(w, "Failed to generate video: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the video URL
+	videoURL := fmt.Sprintf("/static/videos/scene_%d.mp4", req.SceneIndex)
+	
+	// Copy to static directory for serving
+	staticVideoDir := filepath.Join(s.StaticDir, "videos")
+	os.MkdirAll(staticVideoDir, 0755)
+	staticVideoPath := filepath.Join(staticVideoDir, fmt.Sprintf("scene_%d.mp4", req.SceneIndex))
+	
+	// Copy file
+	input, _ := os.ReadFile(outputPath)
+	os.WriteFile(staticVideoPath, input, 0644)
+
+	slog.Info("generated video", "scene", req.SceneIndex, "path", staticVideoPath)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success":  true,
+		"videoUrl": videoURL,
+		"status":   "ready",
+		"message":  "Video generated!",
+	})
+}
+
+func downloadImage(url string, destPath string) error {
+	// Handle base64 data URLs
+	if strings.HasPrefix(url, "data:image") {
+		return saveBase64Image(url, destPath)
+	}
+
+	// Handle regular URLs
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func generateVideoWithFFmpeg(firstFrame, lastFrame, outputPath string, duration int) error {
+	var cmd *exec.Cmd
+
+	if lastFrame != "" {
+		// Cross-fade between two images (image-to-image)
+		// Creates a smooth transition from first to last frame
+		filter := fmt.Sprintf(
+			"[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,zoompan=z='min(zoom+0.0015,1.2)':d=%d*30:s=1920x1080:fps=30[v0];" +
+			"[1:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,zoompan=z='if(lte(zoom,1.0),1.2,max(1.001,zoom-0.0015))':d=%d*30:s=1920x1080:fps=30[v1];" +
+			"[v0][v1]xfade=transition=fade:duration=1:offset=%d[outv]",
+			duration/2, duration/2, duration/2-1,
+		)
+		cmd = exec.Command("ffmpeg", "-y",
+			"-loop", "1", "-i", firstFrame,
+			"-loop", "1", "-i", lastFrame,
+			"-filter_complex", filter,
+			"-map", "[outv]",
+			"-c:v", "libx264", "-pix_fmt", "yuv420p",
+			"-t", fmt.Sprintf("%d", duration),
+			outputPath,
+		)
+	} else {
+		// Ken Burns effect on single image (zoom and pan)
+		filter := fmt.Sprintf(
+			"scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1," +
+			"zoompan=z='min(zoom+0.001,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=%d*30:s=1920x1080:fps=30",
+			duration,
+		)
+		cmd = exec.Command("ffmpeg", "-y",
+			"-loop", "1", "-i", firstFrame,
+			"-vf", filter,
+			"-c:v", "libx264", "-pix_fmt", "yuv420p",
+			"-t", fmt.Sprintf("%d", duration),
+			outputPath,
+		)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Error("ffmpeg failed", "error", err, "output", string(output))
+		return fmt.Errorf("ffmpeg error: %v - %s", err, string(output))
+	}
+
+	return nil
 }
 
 // Save project types
@@ -500,6 +649,34 @@ func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 			req.Scenes[i]["imageFile"] = filename
 			imageCount++
 		}
+
+		// Save video if it exists
+		videoURL, hasVideo := scene["videoUrl"].(string)
+		if hasVideo && videoURL != "" {
+			videoFilename := fmt.Sprintf("scene_%d.mp4", i+1)
+			videoPath := filepath.Join(videosDir, videoFilename)
+			
+			if strings.HasPrefix(videoURL, "data:") {
+				// Handle base64 video data
+				if err := saveBase64Video(videoURL, videoPath); err != nil {
+					slog.Warn("failed to save scene video", "error", err, "scene", i+1)
+				} else {
+					req.Scenes[i]["videoFile"] = videoFilename
+					videoCount++
+				}
+			} else if strings.HasPrefix(videoURL, "blob:") {
+				// Skip blob URLs - they need to be uploaded separately
+				slog.Info("skipping blob URL for scene video", "scene", i+1)
+			} else if strings.HasPrefix(videoURL, "/static/videos/") || strings.HasPrefix(videoURL, "http") {
+				// Download from URL
+				if err := downloadVideo(videoURL, videoPath, s.StaticDir); err != nil {
+					slog.Warn("failed to download scene video", "error", err, "scene", i+1)
+				} else {
+					req.Scenes[i]["videoFile"] = videoFilename
+					videoCount++
+				}
+			}
+		}
 	}
 
 	// Build project data for JSON (without base64 data URLs)
@@ -542,10 +719,12 @@ func cleanImageURLs(items []map[string]any) []map[string]any {
 	for i, item := range items {
 		clean := make(map[string]any)
 		for k, v := range item {
-			// Skip base64 data URLs, keep everything else
-			if k == "imageUrl" {
-				if str, ok := v.(string); ok && strings.HasPrefix(str, "data:") {
-					continue
+			// Skip base64 data URLs and blob URLs, keep everything else
+			if k == "imageUrl" || k == "videoUrl" {
+				if str, ok := v.(string); ok {
+					if strings.HasPrefix(str, "data:") || strings.HasPrefix(str, "blob:") {
+						continue
+					}
 				}
 			}
 			clean[k] = v
@@ -605,9 +784,10 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 		project["characterArt"] = characterArt
 	}
 	
-	// Load scene/keyframe images from disk and convert to base64
+	// Load scene/keyframe images and videos from disk
 	// Check keyframes directory first, fall back to images directory
 	keyframesDir := filepath.Join(projectPath, "keyframes")
+	videosDir := filepath.Join(projectPath, "videos")
 	if scenes, ok := project["scenes"].([]any); ok {
 		for i, scene := range scenes {
 			if sceneMap, ok := scene.(map[string]any); ok {
@@ -632,9 +812,30 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 						mimeType := detectMimeType(imgPath)
 						base64Data := base64.StdEncoding.EncodeToString(imgData)
 						sceneMap["imageUrl"] = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
-						scenes[i] = sceneMap
 					}
 				}
+				
+				// Try to load video by videoFile first, then by index
+				videoFilename := ""
+				if videoFile, ok := sceneMap["videoFile"].(string); ok && videoFile != "" {
+					videoFilename = videoFile
+				} else {
+					videoFilename = fmt.Sprintf("scene_%d.mp4", i+1)
+				}
+				
+				videoPath := filepath.Join(videosDir, videoFilename)
+				if _, err := os.Stat(videoPath); err == nil {
+					// Video exists - serve it via static path
+					// Copy to static directory for serving
+					staticVideoPath := filepath.Join("srv/static/videos", videoFilename)
+					os.MkdirAll(filepath.Dir(staticVideoPath), 0755)
+					if videoData, err := os.ReadFile(videoPath); err == nil {
+						os.WriteFile(staticVideoPath, videoData, 0644)
+						sceneMap["videoUrl"] = fmt.Sprintf("/static/videos/%s", videoFilename)
+					}
+				}
+				
+				scenes[i] = sceneMap
 			}
 		}
 		project["scenes"] = scenes
@@ -770,6 +971,66 @@ func saveBase64Image(dataURL, filepath string) error {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
+	return nil
+}
+
+func saveBase64Video(dataURL, filepath string) error {
+	// Parse data URL: data:video/mp4;base64,xxxxx
+	parts := strings.SplitN(dataURL, ",", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid data URL format")
+	}
+
+	// Decode base64
+	videoData, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(filepath, videoData, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+func downloadVideo(videoURL, destPath, staticDir string) error {
+	var srcPath string
+	
+	if strings.HasPrefix(videoURL, "/static/videos/") {
+		// Local static file
+		srcPath = filepath.Join(staticDir, strings.TrimPrefix(videoURL, "/static/"))
+	} else if strings.HasPrefix(videoURL, "http") {
+		// Download from remote URL
+		resp, err := http.Get(videoURL)
+		if err != nil {
+			return fmt.Errorf("failed to download video: %w", err)
+		}
+		defer resp.Body.Close()
+		
+		out, err := os.Create(destPath)
+		if err != nil {
+			return fmt.Errorf("failed to create video file: %w", err)
+		}
+		defer out.Close()
+		
+		_, err = io.Copy(out, resp.Body)
+		return err
+	} else {
+		return fmt.Errorf("unsupported video URL format")
+	}
+	
+	// Copy local file
+	input, err := os.ReadFile(srcPath)
+	if err != nil {
+		return fmt.Errorf("failed to read source video: %w", err)
+	}
+	
+	if err := os.WriteFile(destPath, input, 0644); err != nil {
+		return fmt.Errorf("failed to write video file: %w", err)
+	}
+	
 	return nil
 }
 
@@ -1087,6 +1348,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
 	mux.HandleFunc("POST /api/save-keyframe", s.HandleSaveKeyframe)
+	mux.HandleFunc("POST /api/generate-video", s.HandleGenerateVideo)
 	mux.HandleFunc("POST /api/save-video-clips", s.HandleSaveVideoClips)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
 	mux.HandleFunc("GET /api/browse-folders", s.HandleBrowseFolders)
