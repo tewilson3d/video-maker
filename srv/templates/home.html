@@ -58,22 +58,45 @@
                                 
                                 <div id="apikeyTab" class="tab-content active">
                                     <div class="setup-steps">
-                                        <h4>Get your API Keys:</h4>
-                                        <ol>
-                                            <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
-                                            <li>Click <strong>"Create API Key"</strong></li>
-                                            <li>Copy the API key(s)</li>
-                                        </ol>
+                                        <h4>Configure your API Keys:</h4>
+                                        <p style="font-size: 0.85rem; color: #888; margin-bottom: 1rem;">Enter keys for the services you want to use.</p>
                                     </div>
-                                    <div class="client-id-input" style="margin-bottom: 1rem;">
-                                        <label>🎨 Gemini API Key (for images):</label>
-                                        <input type="password" id="apiKeyInput" placeholder="AIza...">
-                                        <span class="hint">Used for image generation with Imagen</span>
-                                    </div>
-                                    <div class="client-id-input">
-                                        <label>🎬 Veo API Key (for videos):</label>
-                                        <input type="password" id="veoApiKeyInput" placeholder="AIza...">
-                                        <span class="hint">Used for video generation with Veo 3 (may require Vertex AI access)</span>
+                                    
+                                    <div style="display: grid; gap: 1rem;">
+                                        <!-- Google Section -->
+                                        <div style="border: 1px solid #333; border-radius: 8px; padding: 1rem;">
+                                            <h5 style="margin: 0 0 0.75rem; color: #e0e0e0; font-size: 0.9rem;">🌐 Google</h5>
+                                            <div class="client-id-input" style="margin-bottom: 0.75rem;">
+                                                <label>🎨 Gemini API Key (images):</label>
+                                                <input type="password" id="apiKeyInput" placeholder="AIza...">
+                                                <span class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank">Get key</a> - For Imagen image generation</span>
+                                            </div>
+                                            <div class="client-id-input">
+                                                <label>🎬 Veo API Key (videos):</label>
+                                                <input type="password" id="veoApiKeyInput" placeholder="AIza...">
+                                                <span class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank">Get key</a> - For Veo 3 video generation</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- OpenAI Section -->
+                                        <div style="border: 1px solid #333; border-radius: 8px; padding: 1rem;">
+                                            <h5 style="margin: 0 0 0.75rem; color: #e0e0e0; font-size: 0.9rem;">🤖 OpenAI</h5>
+                                            <div class="client-id-input">
+                                                <label>OpenAI API Key:</label>
+                                                <input type="password" id="openaiApiKeyInput" placeholder="sk-...">
+                                                <span class="hint"><a href="https://platform.openai.com/api-keys" target="_blank">Get key</a> - For GPT, DALL-E, Sora</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Anthropic Section -->
+                                        <div style="border: 1px solid #333; border-radius: 8px; padding: 1rem;">
+                                            <h5 style="margin: 0 0 0.75rem; color: #e0e0e0; font-size: 0.9rem;">🧠 Anthropic</h5>
+                                            <div class="client-id-input">
+                                                <label>Anthropic API Key:</label>
+                                                <input type="password" id="anthropicApiKeyInput" placeholder="sk-ant-...">
+                                                <span class="hint"><a href="https://console.anthropic.com/settings/keys" target="_blank">Get key</a> - For Claude</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -332,34 +355,13 @@
                         <button class="btn-secondary btn-sm" onclick="selectAllScenes()" title="Select All">☑️ All</button>
                         <button class="btn-secondary btn-sm" onclick="clearSelection()" title="Clear Selection">✖️ Clear</button>
                         <button class="btn-secondary" onclick="regenerateStoryboard()">🔄 Regenerate</button>
-                        <button class="btn-primary" onclick="generateAllVideosWithVeo()">🎬 Generate with Veo 3</button>
+                        <button class="btn-primary" onclick="generateAllVideosWithVeo()">🎬 Generate Video Clips</button>
                         <button class="btn-secondary" onclick="exportStoryboard()">📤 Export</button>
                     </div>
                 </div>
                 
                 <div class="storyboard-grid" id="storyboardGrid">
                     <!-- Keyframe cards will be inserted here -->
-                </div>
-                
-                <div class="video-clips-section">
-                    <div class="section-header">
-                        <h3>🎬 Video Clips</h3>
-                        <div class="video-actions">
-                            <button class="btn-generate-video" id="generateClipsBtn">
-                                <span class="btn-text">🎬 Generate with Veo 3</span>
-                                <span class="btn-loading" style="display: none;">Generating...</span>
-                            </button>
-                        </div>
-                    </div>
-                    <p class="video-help-text" style="margin: 0 0 1rem; font-size: 0.85rem; color: #888;">
-                        💡 Click "Generate with Veo 3" to create AI video clips from your storyboard images.
-                    </p>
-                    <div class="video-clips-grid" id="videoClipsGrid">
-                        <div class="video-placeholder">
-                            <span class="placeholder-icon">🎬</span>
-                            <span>Generate storyboard first, then create video clips</span>
-                        </div>
-                    </div>
                 </div>
                 
                 <div class="timeline-section">
@@ -617,12 +619,12 @@
                             <div id="videoClipPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; text-align: center; color: #666;">
                                 <span style="font-size: 2rem; opacity: 0.5;">🎬</span>
                                 <p style="margin: 0.5rem 0 0; font-size: 0.85rem;">No video clip yet</p>
-                                <small style="font-size: 0.75rem; opacity: 0.7;">Generate with Veo 3 or upload manually</small>
+                                <small style="font-size: 0.75rem; opacity: 0.7;">Generate video clip or upload manually</small>
                             </div>
                             <video id="videoClipPlayer" src="" controls style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
                         </div>
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
-                            <button class="btn-primary" onclick="generateKeyframeVideo()" style="flex: 1; padding: 0.5rem;">🎬 Generate with Veo 3</button>
+                            <button class="btn-primary" onclick="generateKeyframeVideo()" style="flex: 1; padding: 0.5rem;">🎬 Generate Video Clip</button>
                             <button class="btn-secondary" onclick="uploadVideoClipForKeyframe()" style="padding: 0.5rem;">📁 Upload</button>
                             <button class="btn-secondary" id="removeVideoClipBtn" onclick="removeVideoClip()" style="padding: 0.5rem; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; display: none;">🗑️</button>
                         </div>
@@ -668,7 +670,9 @@
         // Load from localStorage or prompt user to configure
         let GOOGLE_CLIENT_ID = localStorage.getItem('googleClientId') || '';
         let GEMINI_API_KEY = localStorage.getItem('geminiApiKey') || 'AIzaSyAKXjB3cNipPqKaRXu_mZbXCX3Tv1LyG70';
-        let VEO_API_KEY = localStorage.getItem('veoApiKey') || 'AIzaSyA3Wc14XeZhQNbsLqCANarEeB4wf_H2D74';
+        let VEO_API_KEY = localStorage.getItem('veoApiKey') || 'AQ.Ab8RN6I3KhsDgGGvHM-DOw1Y-SaUETZQLYsC5u_ikbkjf31iWw';
+        let OPENAI_API_KEY = localStorage.getItem('openaiApiKey') || '';
+        let ANTHROPIC_API_KEY = localStorage.getItem('anthropicApiKey') || '';
         
         let googleUser = null;
         let accessToken = null;
@@ -713,6 +717,7 @@
                         <div class="card-actions">
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); openSceneEditor(${index})" title="Edit">✏️</button>
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
+                            <button class="btn-icon-sm btn-delete" onclick="event.stopPropagation(); deleteKeyframe(${index})" title="Delete" style="color:#ef4444;">🗑️</button>
                         </div>
                     </div>
                     <div class="card-image">
@@ -991,7 +996,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; text-align: center; color: #666;">
                     <span style="font-size: 2rem; opacity: 0.5;">🎬</span>
                     <p style="margin: 0.5rem 0 0; font-size: 0.85rem;">No video clip yet</p>
-                    <small style="font-size: 0.75rem; opacity: 0.7;">Generate with Veo 3 or upload manually</small>
+                    <small style="font-size: 0.75rem; opacity: 0.7;">Generate video clip or upload manually</small>
                 </div>
             `;
             videoPlaceholder.style.display = 'flex';
@@ -1072,6 +1077,9 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             }
             
             try {
+                // Process scenes to convert blob URLs to base64 before saving
+                const processedScenes = await prepareScenesForSave(currentStoryboard.scenes || []);
+                
                 await fetch('/api/save-project', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1079,7 +1087,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                         projectPath: projectPath,
                         storyPrompt: currentStoryboard.storyPrompt,
                         characters: currentStoryboard.characters || [],
-                        scenes: currentStoryboard.scenes,
+                        scenes: processedScenes,
                         settings: PROJECT_SETTINGS
                     })
                 });
@@ -1369,6 +1377,56 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 console.error('Failed to convert image to base64:', err);
                 return null;
             }
+        }
+
+        // Convert blob or object URL to base64 data URL (for videos)
+        async function blobUrlToBase64DataUrl(blobUrl) {
+            if (!blobUrl) return null;
+            // If already base64, return as-is
+            if (blobUrl.startsWith('data:')) {
+                return blobUrl;
+            }
+            // If it's a server URL, return as-is (server can download it)
+            if (blobUrl.startsWith('/static/') || blobUrl.startsWith('http')) {
+                return blobUrl;
+            }
+            // Convert blob URL to base64
+            if (blobUrl.startsWith('blob:')) {
+                try {
+                    const response = await fetch(blobUrl);
+                    const blob = await response.blob();
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    });
+                } catch (err) {
+                    console.error('Failed to convert blob URL to base64:', err);
+                    return null;
+                }
+            }
+            return blobUrl;
+        }
+
+        // Process scenes to convert blob URLs to base64 before saving
+        async function prepareScenesForSave(scenes) {
+            if (!scenes || !Array.isArray(scenes)) return scenes;
+            
+            const processedScenes = [];
+            for (const scene of scenes) {
+                const processedScene = { ...scene };
+                
+                // Convert video blob URL to base64
+                if (scene.videoUrl && scene.videoUrl.startsWith('blob:')) {
+                    console.log('Converting blob video to base64 for scene:', scene.id || processedScenes.length);
+                    processedScene.videoUrl = await blobUrlToBase64DataUrl(scene.videoUrl);
+                }
+                
+                processedScenes.push(processedScene);
+            }
+            
+            return processedScenes;
         }
 
         async function pollVeoOperation(operationName, clipData, maxAttempts = 60) {
@@ -1947,45 +2005,59 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             if (currentAuthTab === 'apikey') {
                 const apiKey = document.getElementById('apiKeyInput').value.trim();
                 const veoKey = document.getElementById('veoApiKeyInput').value.trim();
+                const openaiKey = document.getElementById('openaiApiKeyInput').value.trim();
+                const anthropicKey = document.getElementById('anthropicApiKeyInput').value.trim();
                 
-                if (!apiKey || !apiKey.startsWith('AIza')) {
-                    alert('Please enter a valid Gemini API key (starts with AIza)');
-                    return;
+                // Save Gemini key
+                if (apiKey) {
+                    GEMINI_API_KEY = apiKey;
+                    localStorage.setItem('geminiApiKey', apiKey);
                 }
                 
-                GEMINI_API_KEY = apiKey;
-                localStorage.setItem('geminiApiKey', apiKey);
-                
-                // Save Veo key if provided
+                // Save Veo key
                 if (veoKey) {
-                    if (!veoKey.startsWith('AIza')) {
-                        alert('Veo API key should start with AIza');
-                        return;
-                    }
                     VEO_API_KEY = veoKey;
                     localStorage.setItem('veoApiKey', veoKey);
                 }
                 
+                // Save OpenAI key
+                if (openaiKey) {
+                    OPENAI_API_KEY = openaiKey;
+                    localStorage.setItem('openaiApiKey', openaiKey);
+                }
+                
+                // Save Anthropic key
+                if (anthropicKey) {
+                    ANTHROPIC_API_KEY = anthropicKey;
+                    localStorage.setItem('anthropicApiKey', anthropicKey);
+                }
+                
                 closeOAuthSetup();
                 updateAuthDisplay();
+                showToast('API keys saved!', 'success');
             } else {
                 saveClientId();
             }
         }
 
         function updateAuthDisplay() {
-            if (GEMINI_API_KEY) {
-                const veoStatus = VEO_API_KEY ? ' + Veo' : '';
+            const services = [];
+            if (GEMINI_API_KEY) services.push('Gemini');
+            if (VEO_API_KEY) services.push('Veo');
+            if (OPENAI_API_KEY) services.push('OpenAI');
+            if (ANTHROPIC_API_KEY) services.push('Claude');
+            
+            if (services.length > 0) {
                 document.getElementById('loginSection').innerHTML = `
-                    <div class="auth-success">
+                    <div class="auth-success" onclick="openApiSettings()" style="cursor:pointer;">
                         <span>✅</span>
-                        <span>Gemini${veoStatus} Connected</span>
-                        <button class="btn-logout" onclick="clearApiKey()" title="Disconnect">✕</button>
+                        <span>${services.join(' + ')}</span>
+                        <button class="btn-logout" onclick="event.stopPropagation(); clearApiKey()" title="Clear all keys">✕</button>
                     </div>
                 `;
             } else if (!GOOGLE_CLIENT_ID) {
                 document.getElementById('loginSection').innerHTML = `
-                    <div class="auth-warning" onclick="document.getElementById('oauthSetupModal').style.display='flex'" style="cursor:pointer">
+                    <div class="auth-warning" onclick="openApiSettings()" style="cursor:pointer">
                         <span>⚠️</span>
                         <span>API not configured - Click to setup</span>
                     </div>
@@ -1996,8 +2068,12 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         function clearApiKey() {
             GEMINI_API_KEY = '';
             VEO_API_KEY = '';
+            OPENAI_API_KEY = '';
+            ANTHROPIC_API_KEY = '';
             localStorage.removeItem('geminiApiKey');
             localStorage.removeItem('veoApiKey');
+            localStorage.removeItem('openaiApiKey');
+            localStorage.removeItem('anthropicApiKey');
             updateAuthDisplay();
         }
 
@@ -2132,6 +2208,8 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             document.getElementById('oauthSetupModal').style.display = 'flex';
             document.getElementById('apiKeyInput').value = GEMINI_API_KEY || '';
             document.getElementById('veoApiKeyInput').value = VEO_API_KEY || '';
+            document.getElementById('openaiApiKeyInput').value = OPENAI_API_KEY || '';
+            document.getElementById('anthropicApiKeyInput').value = ANTHROPIC_API_KEY || '';
             document.getElementById('clientIdInput').value = GOOGLE_CLIENT_ID || '';
         }
 
@@ -2802,6 +2880,10 @@ Story context: ${storyContext}`;
             btn.disabled = true;
             
             try {
+                // Process scenes to convert blob URLs to base64 before saving
+                const processedScenes = await prepareScenesForSave(projectData.scenes || []);
+                console.log('Scenes with videos:', processedScenes?.filter(s => s.videoUrl).length || 0);
+                
                 // Save to server (primary method - saves to server project path)
                 const serverSaveData = {
                     projectPath: projectPath,
@@ -2809,7 +2891,7 @@ Story context: ${storyContext}`;
                     characters: projectData.characters || [],
                     characterArt: projectData.characterArt || [],
                     keyframes: projectData.keyframes || [],
-                    scenes: projectData.scenes || [],
+                    scenes: processedScenes,
                     shotSequence: projectData.shotSequence || '',
                     imageProvider: projectData.imageProvider || 'gemini',
                     settings: projectData.settings || {}
@@ -2832,7 +2914,7 @@ Story context: ${storyContext}`;
                 const result = await response.json();
                 console.log('Server save result:', result);
                 
-                showToast(`Project saved to ${projectPath}! ${result.imageCount || 0} images saved.`, 'success');
+                showToast(`Project saved to ${projectPath}! ${result.imageCount || 0} images, ${result.videoCount || 0} videos saved.`, 'success');
                 
                 // Also save to local folder if File System Access API is available and folder is selected
                 if (localDirectoryHandle) {
@@ -2889,16 +2971,65 @@ Story context: ${storyContext}`;
                 }
             }
 
-            // Save scene images
-            if (imagesDir && localProjectData.scenes) {
+            // Save scene images to keyframes directory
+            let keyframesDir;
+            try {
+                keyframesDir = await localDirectoryHandle.getDirectoryHandle('keyframes', { create: true });
+            } catch (e) {
+                console.warn('Could not create keyframes directory:', e);
+                keyframesDir = imagesDir; // Fall back to images dir
+            }
+            
+            if (keyframesDir && localProjectData.scenes) {
                 for (let i = 0; i < localProjectData.scenes.length; i++) {
                     const scene = localProjectData.scenes[i];
                     if (scene.imageUrl && scene.imageUrl.startsWith('data:')) {
                         const filename = `scene_${i + 1}.png`;
-                        await saveBase64ToFile(imagesDir, filename, scene.imageUrl);
+                        await saveBase64ToFile(keyframesDir, filename, scene.imageUrl);
                         localProjectData.scenes[i].imageFile = filename;
                         delete localProjectData.scenes[i].imageUrl;
                         imageCount++;
+                    }
+                }
+            }
+
+            // Save scene videos to videos directory
+            let videosDir;
+            try {
+                videosDir = await localDirectoryHandle.getDirectoryHandle('videos', { create: true });
+            } catch (e) {
+                console.warn('Could not create videos directory:', e);
+            }
+            
+            if (videosDir && localProjectData.scenes) {
+                for (let i = 0; i < localProjectData.scenes.length; i++) {
+                    const scene = localProjectData.scenes[i];
+                    // Handle blob URLs by fetching and saving
+                    if (scene.videoUrl && scene.videoUrl.startsWith('blob:')) {
+                        try {
+                            const response = await fetch(scene.videoUrl);
+                            const blob = await response.blob();
+                            const filename = `scene_${i + 1}.mp4`;
+                            const fileHandle = await videosDir.getFileHandle(filename, { create: true });
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(blob);
+                            await writable.close();
+                            localProjectData.scenes[i].videoFile = filename;
+                            delete localProjectData.scenes[i].videoUrl;
+                            console.log(`Saved video for scene ${i + 1}`);
+                        } catch (e) {
+                            console.warn(`Could not save video for scene ${i + 1}:`, e);
+                        }
+                    } else if (scene.videoUrl && scene.videoUrl.startsWith('data:')) {
+                        try {
+                            const filename = `scene_${i + 1}.mp4`;
+                            await saveBase64ToFile(videosDir, filename, scene.videoUrl);
+                            localProjectData.scenes[i].videoFile = filename;
+                            delete localProjectData.scenes[i].videoUrl;
+                            console.log(`Saved video for scene ${i + 1}`);
+                        } catch (e) {
+                            console.warn(`Could not save video for scene ${i + 1}:`, e);
+                        }
                     }
                 }
             }
@@ -3028,16 +3159,63 @@ Story context: ${storyContext}`;
                     }
                 }
 
-                // Load scene images
-                if (imagesDir && project.scenes) {
+                // Load scene images from keyframes directory first, then images
+                let keyframesDir;
+                try {
+                    keyframesDir = await localDirectoryHandle.getDirectoryHandle('keyframes');
+                } catch (e) {
+                    console.warn('No keyframes directory found, trying images directory');
+                }
+                
+                if (project.scenes) {
                     for (let i = 0; i < project.scenes.length; i++) {
                         const scene = project.scenes[i];
                         if (scene.imageFile) {
                             try {
-                                const imageUrl = await loadImageFromFile(imagesDir, scene.imageFile);
-                                project.scenes[i].imageUrl = imageUrl;
+                                // Try keyframes dir first, then images dir
+                                let imageUrl;
+                                if (keyframesDir) {
+                                    try {
+                                        imageUrl = await loadImageFromFile(keyframesDir, scene.imageFile);
+                                    } catch (e) {
+                                        if (imagesDir) {
+                                            imageUrl = await loadImageFromFile(imagesDir, scene.imageFile);
+                                        }
+                                    }
+                                } else if (imagesDir) {
+                                    imageUrl = await loadImageFromFile(imagesDir, scene.imageFile);
+                                }
+                                if (imageUrl) {
+                                    project.scenes[i].imageUrl = imageUrl;
+                                }
                             } catch (e) {
                                 console.warn(`Could not load ${scene.imageFile}:`, e);
+                            }
+                        }
+                    }
+                }
+                
+                // Load scene videos from videos directory
+                let videosDir;
+                try {
+                    videosDir = await localDirectoryHandle.getDirectoryHandle('videos');
+                } catch (e) {
+                    console.warn('No videos directory found');
+                }
+                
+                if (videosDir && project.scenes) {
+                    for (let i = 0; i < project.scenes.length; i++) {
+                        const scene = project.scenes[i];
+                        if (scene.videoFile) {
+                            try {
+                                // Load video as blob URL (more efficient than base64 for videos)
+                                const fileHandle = await videosDir.getFileHandle(scene.videoFile);
+                                const file = await fileHandle.getFile();
+                                const videoUrl = URL.createObjectURL(file);
+                                project.scenes[i].videoUrl = videoUrl;
+                                console.log(`Loaded video for scene ${i + 1}:`, scene.videoFile);
+                            } catch (e) {
+                                console.warn(`Could not load video ${scene.videoFile}:`, e);
                             }
                         }
                     }
@@ -3427,6 +3605,7 @@ Story context: ${storyContext}`;
                         <div class="card-actions">
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); openSceneEditor(${index})" title="Edit">✏️</button>
                             <button class="btn-icon-sm" onclick="event.stopPropagation(); regenerateSceneImage(${index})" title="Regenerate">🔄</button>
+                            <button class="btn-icon-sm btn-delete" onclick="event.stopPropagation(); deleteKeyframe(${index})" title="Delete" style="color:#ef4444;">🗑️</button>
                         </div>
                     </div>
                     <div class="card-image loading-state">
@@ -3626,6 +3805,26 @@ Story context: ${storyContext}`;
                 timelineItem.classList.remove('timeline-loading');
                 timelineItem.classList.add('timeline-error');
             }
+        }
+
+        // Delete a keyframe
+        function deleteKeyframe(index) {
+            if (!currentStoryboard || !currentStoryboard.scenes[index]) return;
+            
+            if (!confirm(`Delete Keyframe ${index + 1}? This cannot be undone.`)) {
+                return;
+            }
+            
+            // Remove from scenes array
+            currentStoryboard.scenes.splice(index, 1);
+            
+            // Re-render the storyboard
+            updateStoryboardTab(currentStoryboard);
+            
+            // Save to server
+            saveStoryboardToServerQuick();
+            
+            showToast(`Keyframe ${index + 1} deleted`, 'success');
         }
 
         // Regenerate a single scene image
