@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Maker - Create Your Story</title>
-    <link rel="stylesheet" href="/static/styles.css?v=4">
+    <link rel="stylesheet" href="/static/styles.css?v=5">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -169,6 +169,11 @@
                         ></textarea>
                         <span class="hint">Include setting, mood, conflict, and key events.</span>
                     </div>
+                    <button type="button" class="btn-generate-elements" id="generateStoryElementsBtn">
+                        <span class="btn-text">✨ Generate Story Elements</span>
+                        <span class="btn-loading" style="display: none;">Generating...</span>
+                    </button>
+                    <span class="hint" style="margin-top: 0.5rem; display: block;">Uses OpenAI to expand your story idea into detailed characters and keyframes.</span>
                 </div>
 
                 <!-- Character Prompts -->
@@ -3506,6 +3511,144 @@ Story context: ${storyContext}`;
             }
 
             // Image provider is now always gemini, no need to load
+        }
+
+        // Generate Story Elements with OpenAI
+        document.getElementById('generateStoryElementsBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('generateStoryElementsBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+            
+            const storyIdea = document.getElementById('storyPrompt').value.trim();
+            if (!storyIdea) {
+                alert('Please enter a story idea first');
+                return;
+            }
+            
+            if (!OPENAI_API_KEY) {
+                alert('Please configure your OpenAI API key in Settings');
+                return;
+            }
+            
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            
+            try {
+                const response = await generateStoryElementsWithOpenAI(storyIdea);
+                
+                // Update story prompt with expanded version
+                if (response.storyPrompt) {
+                    document.getElementById('storyPrompt').value = response.storyPrompt;
+                }
+                
+                // Populate character prompts
+                if (response.characters && response.characters.length > 0) {
+                    // Show character cards, hide sequence input
+                    characterSequenceInput.style.display = 'none';
+                    document.getElementById('parseCharactersBtn').style.display = 'none';
+                    characterContainer.style.display = 'block';
+                    characterActions.style.display = 'flex';
+                    
+                    characterContainer.innerHTML = '';
+                    characterCount = 0;
+                    
+                    response.characters.forEach(char => {
+                        addCharacterCard(char);
+                    });
+                    updateRemoveButtons();
+                }
+                
+                // Populate keyframe prompts
+                if (response.keyframes && response.keyframes.length > 0) {
+                    // Show keyframes, hide sequence input
+                    shotSequenceInput.style.display = 'none';
+                    keyframeContainer.style.display = 'block';
+                    keyframeActions.style.display = 'flex';
+                    
+                    keyframeContainer.innerHTML = '';
+                    keyframeCount = 0;
+                    
+                    response.keyframes.forEach(kf => {
+                        addKeyframeCard(kf);
+                    });
+                    updateRemoveButtons();
+                }
+                
+                showToast('Story elements generated successfully!', 'success');
+                
+            } catch (err) {
+                console.error('Failed to generate story elements:', err);
+                alert('Failed to generate story elements: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+        
+        // Call OpenAI to generate story elements
+        async function generateStoryElementsWithOpenAI(storyIdea) {
+            const systemPrompt = `You are an expert video director, cinematographer and story board artist. Your skill is visual story telling.
+
+You can take a story and communicate it with tight, succinct video editing.
+
+The videos are for social media like TikTok. This means:
+- The first shot should be visually enticing and hook the viewer
+- The overall video length should range from 5 to 30 seconds max
+- Tight editing, don't overstay their welcome. People have short attention spans so only linger on shots that are impactful and meaningful.
+
+You will be given a rough idea for a story/video. You should use your skills to tell the story visually and interestingly.
+
+Respond with a JSON object containing:
+1. "storyPrompt": An expanded, more detailed version of the story (2-3 sentences max)
+2. "characters": An array of character descriptions. Each should include: name, gender, age, body build, race, face details, eye color, hair style, hair length, hair color, outfit (head to toe), and other key details.
+3. "keyframes": An array of shot descriptions. Each should be a detailed visual description of what's in the shot, including camera angle (Closeup, Wide, Mid, etc.), and what's happening. Be specific about what is SEEN, not character names.
+
+Example keyframe: "Closeup - A weathered hand slides a credit card across a dimly lit bar counter, fingers brushing against painted nails"
+
+Return ONLY valid JSON, no markdown code blocks.`;
+
+            const userPrompt = `Create story elements for this idea: ${storyIdea}`;
+            
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: 0.8,
+                    max_tokens: 2000
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || 'OpenAI API error');
+            }
+            
+            const data = await response.json();
+            const content = data.choices[0].message.content;
+            
+            // Parse JSON response
+            try {
+                // Try to extract JSON if wrapped in code blocks
+                let jsonStr = content;
+                const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+                if (jsonMatch) {
+                    jsonStr = jsonMatch[1];
+                }
+                return JSON.parse(jsonStr.trim());
+            } catch (e) {
+                console.error('Failed to parse OpenAI response:', content);
+                throw new Error('Failed to parse AI response');
+            }
         }
 
         // Form submission
