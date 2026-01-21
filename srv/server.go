@@ -35,7 +35,7 @@ type Project struct {
 	ID            string         `json:"id"`
 	StoryPrompt   string         `json:"storyPrompt"`
 	Characters    []Character    `json:"characters"`
-	CharacterArt  []CharacterArt `json:"characterArt"`
+	ArtImages  []ArtImages `json:"artImages"`
 	Keyframes     []Keyframe     `json:"keyframes"`
 	Scenes        []Scene        `json:"scenes"`
 	ImageProvider string         `json:"imageProvider"`
@@ -46,7 +46,7 @@ type Character struct {
 	Description string `json:"description"`
 }
 
-type CharacterArt struct {
+type ArtImages struct {
 	Index    int    `json:"index"`
 	ImageURL string `json:"imageUrl"`
 }
@@ -106,7 +106,7 @@ func (s *Server) HandleCreateProject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		StoryPrompt   string         `json:"storyPrompt"`
 		Characters    []Character    `json:"characters"`
-		CharacterArt  []CharacterArt `json:"characterArt"`
+		ArtImages  []ArtImages `json:"artImages"`
 		Keyframes     []Keyframe     `json:"keyframes"`
 		ImageProvider string         `json:"imageProvider"`
 	}
@@ -120,13 +120,13 @@ func (s *Server) HandleCreateProject(w http.ResponseWriter, r *http.Request) {
 	projectID := fmt.Sprintf("proj_%d", len(s.projects)+1)
 	
 	// Generate scenes using keyframes, characters, and character art for consistency
-	scenes := generateScenesWithCharacters(req.Keyframes, req.StoryPrompt, req.Characters, req.CharacterArt)
+	scenes := generateScenesWithCharacters(req.Keyframes, req.StoryPrompt, req.Characters, req.ArtImages)
 	
 	project := &Project{
 		ID:            projectID,
 		StoryPrompt:   req.StoryPrompt,
 		Characters:    req.Characters,
-		CharacterArt:  req.CharacterArt,
+		ArtImages:  req.ArtImages,
 		Keyframes:     req.Keyframes,
 		Scenes:        scenes,
 		ImageProvider: req.ImageProvider,
@@ -159,7 +159,7 @@ func (s *Server) HandleGetProject(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(project)
 }
 
-type CharacterArtRequest struct {
+type ArtImagesRequest struct {
 	Characters []struct {
 		Index       int    `json:"index"`
 		Description string `json:"description"`
@@ -167,14 +167,14 @@ type CharacterArtRequest struct {
 	Provider string `json:"provider"`
 }
 
-type CharacterArtResult struct {
+type ArtImagesResult struct {
 	Index    int    `json:"index"`
 	ImageURL string `json:"imageUrl"`
 	Prompt   string `json:"prompt"`
 }
 
-func (s *Server) HandleGenerateCharacterArt(w http.ResponseWriter, r *http.Request) {
-	var req CharacterArtRequest
+func (s *Server) HandleGenerateArtImages(w http.ResponseWriter, r *http.Request) {
+	var req ArtImagesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
@@ -182,14 +182,14 @@ func (s *Server) HandleGenerateCharacterArt(w http.ResponseWriter, r *http.Reque
 
 	// Generate art for each character
 	// For now, use placeholder images - will integrate real providers later
-	results := make([]CharacterArtResult, len(req.Characters))
+	results := make([]ArtImagesResult, len(req.Characters))
 	colors := []string{"6366f1", "8b5cf6", "ec4899", "f43f5e", "f97316", "eab308", "22c55e", "14b8a6"}
 	
 	for i, char := range req.Characters {
 		colorIdx := (char.Index - 1) % len(colors)
 		// In production, this would call the actual image generation API
 		imageURL := generateCharacterImage(char.Description, req.Provider, colors[colorIdx])
-		results[i] = CharacterArtResult{
+		results[i] = ArtImagesResult{
 			Index:    char.Index,
 			ImageURL: imageURL,
 			Prompt:   char.Description,
@@ -561,7 +561,7 @@ type SaveProjectRequest struct {
 	ProjectPath   string                   `json:"projectPath"`
 	StoryPrompt   string                   `json:"storyPrompt"`
 	Characters    []map[string]any         `json:"characters"`
-	CharacterArt  []map[string]any         `json:"characterArt"`
+	ArtImages  []map[string]any         `json:"artImages"`
 	Keyframes     []map[string]any         `json:"keyframes"`
 	Scenes        []map[string]any         `json:"scenes"`
 	ShotSequence  string                   `json:"shotSequence"`
@@ -600,7 +600,7 @@ func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 	videoCount := 0
 
 	// Save character art images
-	for i, art := range req.CharacterArt {
+	for i, art := range req.ArtImages {
 		imageURL, ok := art["imageUrl"].(string)
 		if !ok || imageURL == "" {
 			continue
@@ -620,7 +620,7 @@ func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			// Update the art entry with the filename (not the data URL)
-			req.CharacterArt[i]["imageFile"] = filename
+			req.ArtImages[i]["imageFile"] = filename
 			imageCount++
 		}
 	}
@@ -683,7 +683,7 @@ func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 	projectData := map[string]any{
 		"storyPrompt":   req.StoryPrompt,
 		"characters":    req.Characters,
-		"characterArt":  cleanImageURLs(req.CharacterArt),
+		"artImages":  cleanImageURLs(req.ArtImages),
 		"keyframes":     req.Keyframes,
 		"scenes":        cleanImageURLs(req.Scenes),
 		"shotSequence":  req.ShotSequence,
@@ -760,8 +760,8 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Load character art images from disk and convert to base64
-	if characterArt, ok := project["characterArt"].([]any); ok {
-		for i, art := range characterArt {
+	if artImages, ok := project["artImages"].([]any); ok {
+		for i, art := range artImages {
 			if artMap, ok := art.(map[string]any); ok {
 				// Try to load image by imageFile first, then by index
 				var imgPath string
@@ -776,12 +776,12 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 						mimeType := detectMimeType(imgPath)
 						base64Data := base64.StdEncoding.EncodeToString(imgData)
 						artMap["imageUrl"] = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
-						characterArt[i] = artMap
+						artImages[i] = artMap
 					}
 				}
 			}
 		}
-		project["characterArt"] = characterArt
+		project["artImages"] = artImages
 	}
 	
 	// Load scene/keyframe images and videos from disk
@@ -1034,12 +1034,12 @@ func downloadVideo(videoURL, destPath, staticDir string) error {
 	return nil
 }
 
-func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, characters []Character, characterArt []CharacterArt) []Scene {
+func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, characters []Character, artImages []ArtImages) []Scene {
 	colors := []string{"1a1a2e", "16213e", "0f3460", "533483", "e94560", "2d4059", "3d5a80", "5c4d7d"}
 	
 	// Build character art lookup map
 	artMap := make(map[int]string)
-	for _, art := range characterArt {
+	for _, art := range artImages {
 		artMap[art.Index] = art.ImageURL
 	}
 	
@@ -1056,7 +1056,7 @@ func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, char
 			colorIdx := i % len(colors)
 			
 			// Build image prompt that includes character references
-			imagePrompt := buildScenePrompt(kf.Description, characters, characterArt)
+			imagePrompt := buildScenePrompt(kf.Description, characters, artImages)
 			
 			// TODO: In production, this would call the image generation API
 			// with the character art images as reference for consistency
@@ -1086,7 +1086,7 @@ func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, char
 	scenes := make([]Scene, len(defaultScenes))
 	for i, ds := range defaultScenes {
 		colorIdx := i % len(colors)
-		imagePrompt := buildScenePrompt(ds.prompt, characters, characterArt)
+		imagePrompt := buildScenePrompt(ds.prompt, characters, artImages)
 		scenes[i] = Scene{
 			ID:          fmt.Sprintf("scene_%d", i+1),
 			Narration:   ds.narration,
@@ -1098,7 +1098,7 @@ func generateScenesWithCharacters(keyframes []Keyframe, storyPrompt string, char
 }
 
 // buildScenePrompt creates a detailed prompt that references character art for consistency
-func buildScenePrompt(sceneDescription string, characters []Character, characterArt []CharacterArt) string {
+func buildScenePrompt(sceneDescription string, characters []Character, artImages []ArtImages) string {
 	prompt := sceneDescription
 	
 	if len(characters) > 0 {
@@ -1108,8 +1108,8 @@ func buildScenePrompt(sceneDescription string, characters []Character, character
 		}
 	}
 	
-	if len(characterArt) > 0 {
-		prompt += fmt.Sprintf("\n\n[%d character reference image(s) provided for visual consistency]", len(characterArt))
+	if len(artImages) > 0 {
+		prompt += fmt.Sprintf("\n\n[%d character reference image(s) provided for visual consistency]", len(artImages))
 	}
 	
 	return prompt
@@ -1344,7 +1344,7 @@ func (s *Server) Serve(addr string) error {
 	// API
 	mux.HandleFunc("POST /api/projects", s.HandleCreateProject)
 	mux.HandleFunc("GET /api/projects/{id}", s.HandleGetProject)
-	mux.HandleFunc("POST /api/generate-character-art", s.HandleGenerateCharacterArt)
+	mux.HandleFunc("POST /api/generate-art-images", s.HandleGenerateArtImages)
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
 	mux.HandleFunc("POST /api/save-keyframe", s.HandleSaveKeyframe)

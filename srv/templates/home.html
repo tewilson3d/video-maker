@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Maker - Create Your Story</title>
-    <link rel="stylesheet" href="/static/styles.css?v=3">
+    <link rel="stylesheet" href="/static/styles.css?v=4">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -257,20 +257,20 @@
             </div>
 
             <!-- Generate Button -->
-            <!-- Character Art (spans both columns) -->
-            <div class="prompt-section character-art-section">
+            <!-- Prompt/Reference Images (spans both columns) -->
+            <div class="prompt-section art-images-section">
                 <div class="section-header">
-                    <h2>🎨 Character Art</h2>
+                    <h2>🎨 Prompt/Reference Images</h2>
                     <div class="provider-badge">
                         <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" alt="Gemini" class="gemini-icon">
                         <span>Google Gemini</span>
                     </div>
                 </div>
-                <div id="characterArtGrid" class="character-art-grid">
+                <div id="artImagesGrid" class="art-images-grid">
                     <div class="art-placeholder">
                         <span class="placeholder-icon">🖼️</span>
-                        <span>Character art will appear here</span>
-                        <span class="placeholder-hint">Add character prompts and click "Generate with Gemini"</span>
+                        <span>Art images will appear here</span>
+                        <span class="placeholder-hint">Add prompts and click "Generate with Gemini" to create reference images</span>
                     </div>
                 </div>
                 <button type="button" class="btn-generate-art gemini-btn" id="generateArtBtn">
@@ -2502,7 +2502,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
 
         async function generateCharacterArtAutomatic() {
             const btn = document.getElementById('generateArtBtn');
-            const artGrid = document.getElementById('characterArtGrid');
+            const artGrid = document.getElementById('artImagesGrid');
             
             btn.disabled = true;
             btn.querySelector('.btn-text').textContent = 'Generating...';
@@ -2794,7 +2794,7 @@ Story context: ${storyContext}`;
         function finishGeminiGeneration() {
             closeGeminiModal();
 
-            const artGrid = document.getElementById('characterArtGrid');
+            const artGrid = document.getElementById('artImagesGrid');
             
             // Build grid from results
             const cards = geminiCharacters.map(char => {
@@ -2961,7 +2961,7 @@ Story context: ${storyContext}`;
                     projectPath: projectPath,
                     storyPrompt: projectData.storyPrompt,
                     characters: projectData.characters || [],
-                    characterArt: projectData.characterArt || [],
+                    artImages: projectData.artImages || [],
                     keyframes: projectData.keyframes || [],
                     scenes: processedScenes,
                     shotSequence: projectData.shotSequence || '',
@@ -3030,14 +3030,14 @@ Story context: ${storyContext}`;
             const localProjectData = JSON.parse(JSON.stringify(projectData));
 
             // Save character art images
-            if (imagesDir && localProjectData.characterArt) {
-                for (let i = 0; i < localProjectData.characterArt.length; i++) {
-                    const art = localProjectData.characterArt[i];
+            if (imagesDir && localProjectData.artImages) {
+                for (let i = 0; i < localProjectData.artImages.length; i++) {
+                    const art = localProjectData.artImages[i];
                     if (art.imageUrl && art.imageUrl.startsWith('data:')) {
                         const filename = `character_${art.index || i + 1}.png`;
                         await saveBase64ToFile(imagesDir, filename, art.imageUrl);
-                        localProjectData.characterArt[i].imageFile = filename;
-                        delete localProjectData.characterArt[i].imageUrl;
+                        localProjectData.artImages[i].imageFile = filename;
+                        delete localProjectData.artImages[i].imageUrl;
                         imageCount++;
                     }
                 }
@@ -3217,13 +3217,13 @@ Story context: ${storyContext}`;
                 }
 
                 // Load character art images
-                if (imagesDir && project.characterArt) {
-                    for (let i = 0; i < project.characterArt.length; i++) {
-                        const art = project.characterArt[i];
+                if (imagesDir && project.artImages) {
+                    for (let i = 0; i < project.artImages.length; i++) {
+                        const art = project.artImages[i];
                         if (art.imageFile) {
                             try {
                                 const imageUrl = await loadImageFromFile(imagesDir, art.imageFile);
-                                project.characterArt[i].imageUrl = imageUrl;
+                                project.artImages[i].imageUrl = imageUrl;
                             } catch (e) {
                                 console.warn(`Could not load ${art.imageFile}:`, e);
                             }
@@ -3301,7 +3301,7 @@ Story context: ${storyContext}`;
                     updateStoryboardTab({
                         storyPrompt: project.storyPrompt,
                         characters: project.characters || [],
-                        characterArt: project.characterArt || [],
+                        artImages: project.artImages || [],
                         scenes: project.scenes
                     });
                 }
@@ -3355,7 +3355,7 @@ Story context: ${storyContext}`;
                     updateStoryboardTab({
                         storyPrompt: project.storyPrompt,
                         characters: project.characters || [],
-                        characterArt: project.characterArt || [],
+                        artImages: project.artImages || [],
                         scenes: project.scenes
                     });
                 }
@@ -3398,12 +3398,12 @@ Story context: ${storyContext}`;
             });
 
             // Gather character art
-            const characterArt = [];
+            const artImages = [];
             document.querySelectorAll('.art-card').forEach(card => {
                 const img = card.querySelector('img');
                 const charIndex = parseInt(card.dataset.character);
                 if (img && img.src) {
-                    characterArt.push({
+                    artImages.push({
                         index: charIndex,
                         imageUrl: img.src,
                         isLocal: img.src.startsWith('data:')
@@ -3429,7 +3429,7 @@ Story context: ${storyContext}`;
             return {
                 storyPrompt,
                 characters,
-                characterArt,
+                artImages,
                 keyframes,
                 shotSequence,
                 imageProvider,
@@ -3468,9 +3468,9 @@ Story context: ${storyContext}`;
             }
 
             // Load character art if available
-            if (project.characterArt && project.characterArt.length > 0) {
-                const artGrid = document.getElementById('characterArtGrid');
-                artGrid.innerHTML = project.characterArt.map(art => `
+            if (project.artImages && project.artImages.length > 0) {
+                const artGrid = document.getElementById('artImagesGrid');
+                artGrid.innerHTML = project.artImages.map(art => `
                     <div class="art-card" data-character="${art.index}">
                         <div class="art-image-container">
                             <img src="${art.imageUrl}" alt="Character ${art.index}">
@@ -3537,12 +3537,12 @@ Story context: ${storyContext}`;
             });
 
             // Collect generated character art
-            const characterArt = [];
+            const artImages = [];
             document.querySelectorAll('.art-card').forEach(card => {
                 const img = card.querySelector('img');
                 const charIndex = parseInt(card.dataset.character);
                 if (img && img.src) {
-                    characterArt.push({
+                    artImages.push({
                         index: charIndex,
                         imageUrl: img.src
                     });
@@ -3579,7 +3579,7 @@ Story context: ${storyContext}`;
             updateStoryboardTabWithLoading({
                 storyPrompt: storyPrompt,
                 characters: characters,
-                characterArt: characterArt,
+                artImages: artImages,
                 scenes: scenes
             });
 
@@ -3622,7 +3622,7 @@ Story context: ${storyContext}`;
                     body: JSON.stringify({
                         storyPrompt,
                         characters,
-                        characterArt,
+                        artImages,
                         keyframes,
                         imageProvider: 'gemini',
                         settings: PROJECT_SETTINGS
