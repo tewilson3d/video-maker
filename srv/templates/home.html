@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Maker - Create Your Story</title>
-    <link rel="stylesheet" href="/static/styles.css?v=5">
+    <link rel="stylesheet" href="/static/styles.css?v=6">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -3306,7 +3306,7 @@ Story context: ${storyContext}`;
                     updateStoryboardTab({
                         storyPrompt: project.storyPrompt,
                         characters: project.characters || [],
-                        artImages: project.artImages || [],
+                        artImages: project.artImages || project.characterArt || [],
                         scenes: project.scenes
                     });
                 }
@@ -3360,7 +3360,7 @@ Story context: ${storyContext}`;
                     updateStoryboardTab({
                         storyPrompt: project.storyPrompt,
                         characters: project.characters || [],
-                        artImages: project.artImages || [],
+                        artImages: project.artImages || project.characterArt || [],
                         scenes: project.scenes
                     });
                 }
@@ -3372,11 +3372,9 @@ Story context: ${storyContext}`;
                     document.getElementById('projectPathInput').value = PROJECT_PATH;
                 }
                 
-                // Load settings if present
-                if (project.settings) {
-                    Object.assign(PROJECT_SETTINGS, project.settings);
-                    localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
-                }
+                // Note: We intentionally do NOT load settings from old projects
+                // The current UI settings (aspect ratio, resolution, etc.) are preserved
+                // Old projects may have outdated or incompatible settings
                 
                 showToast(`Project loaded from ${file.name}`, 'success');
             } catch (err) {
@@ -3472,10 +3470,11 @@ Story context: ${storyContext}`;
                 characterActions.style.display = 'none';
             }
 
-            // Load character art if available
-            if (project.artImages && project.artImages.length > 0) {
+            // Load character art if available (support both old 'characterArt' and new 'artImages' field names)
+            const artImages = project.artImages || project.characterArt || [];
+            if (artImages.length > 0) {
                 const artGrid = document.getElementById('artImagesGrid');
-                artGrid.innerHTML = project.artImages.map(art => `
+                artGrid.innerHTML = artImages.map(art => `
                     <div class="art-card" data-character="${art.index}">
                         <div class="art-image-container">
                             <img src="${art.imageUrl}" alt="Character ${art.index}">
@@ -3506,11 +3505,16 @@ Story context: ${storyContext}`;
                 });
                 updateRemoveButtons();
             } else if (project.shotSequence) {
-                // Load shot sequence
+                // Load shot sequence text into the textarea
                 document.getElementById('shotSequenceText').value = project.shotSequence;
+                // Keep sequence input visible, hide keyframe cards
+                shotSequenceInput.style.display = 'block';
+                keyframeContainer.style.display = 'none';
+                keyframeActions.style.display = 'none';
             }
 
-            // Image provider is now always gemini, no need to load
+            // Note: We do NOT load imageProvider or other UI settings from old projects
+            // The current UI layout and settings are always preserved
         }
 
         // Generate Story Elements with OpenAI
