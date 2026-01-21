@@ -1540,6 +1540,11 @@ footer {
     max-width: 500px;
 }
 
+.settings-modal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
 .settings-section {
     margin-bottom: 1.5rem;
     padding-bottom: 1.5rem;
@@ -1744,6 +1749,35 @@ footer {
 .settings-row select:focus {
     outline: none;
     border-color: var(--accent);
+}
+
+.settings-row input[type="password"],
+.settings-row input[type="text"] {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    min-width: 200px;
+    flex: 1;
+    max-width: 300px;
+}
+
+.settings-row input[type="password"]:focus,
+.settings-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.settings-row .hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+}
+
+.settings-row .hint a {
+    color: var(--accent);
 }
 
 .storyboard-info {

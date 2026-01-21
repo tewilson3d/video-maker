@@ -480,6 +480,35 @@
                             </select>
                         </div>
                     </div>
+
+                    <div class="settings-section">
+                        <h4>🔑 API Keys</h4>
+                        <p class="settings-desc">Configure your AI service API keys</p>
+                        
+                        <div class="settings-row">
+                            <label>Gemini API Key</label>
+                            <input type="password" id="settingsGeminiKey" placeholder="AIza...">
+                            <span class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank">Get key</a></span>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <label>Veo API Key</label>
+                            <input type="password" id="settingsVeoKey" placeholder="AIza...">
+                            <span class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank">Get key</a></span>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <label>OpenAI API Key</label>
+                            <input type="password" id="settingsOpenaiKey" placeholder="sk-...">
+                            <span class="hint"><a href="https://platform.openai.com/api-keys" target="_blank">Get key</a></span>
+                        </div>
+                        
+                        <div class="settings-row">
+                            <label>Anthropic API Key</label>
+                            <input type="password" id="settingsAnthropicKey" placeholder="sk-ant-...">
+                            <span class="hint"><a href="https://console.anthropic.com/settings/keys" target="_blank">Get key</a></span>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn-secondary" onclick="closeSettingsModal()">Cancel</button>
@@ -1936,6 +1965,13 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             document.getElementById('videoAspectRatio').value = PROJECT_SETTINGS.videoAspectRatio;
             document.getElementById('clipDuration').value = PROJECT_SETTINGS.clipDuration;
             document.getElementById('frameRate').value = PROJECT_SETTINGS.frameRate;
+            
+            // Populate API keys (show current values)
+            document.getElementById('settingsGeminiKey').value = GEMINI_API_KEY || '';
+            document.getElementById('settingsVeoKey').value = VEO_API_KEY || '';
+            document.getElementById('settingsOpenaiKey').value = OPENAI_API_KEY || '';
+            document.getElementById('settingsAnthropicKey').value = ANTHROPIC_API_KEY || '';
+            
             document.getElementById('settingsModal').style.display = 'flex';
         }
 
@@ -1974,6 +2010,39 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             
             PROJECT_PATH = PROJECT_SETTINGS.projectPath;
             localStorage.setItem('projectSettings', JSON.stringify(PROJECT_SETTINGS));
+            
+            // Save API keys
+            const geminiKey = document.getElementById('settingsGeminiKey').value.trim();
+            const veoKey = document.getElementById('settingsVeoKey').value.trim();
+            const openaiKey = document.getElementById('settingsOpenaiKey').value.trim();
+            const anthropicKey = document.getElementById('settingsAnthropicKey').value.trim();
+            
+            if (geminiKey) {
+                GEMINI_API_KEY = geminiKey;
+                localStorage.setItem('geminiApiKey', geminiKey);
+                // Also update the header dropdown input
+                const headerInput = document.getElementById('apiKeyInput');
+                if (headerInput) headerInput.value = geminiKey;
+            }
+            if (veoKey) {
+                VEO_API_KEY = veoKey;
+                localStorage.setItem('veoApiKey', veoKey);
+                const headerInput = document.getElementById('veoApiKeyInput');
+                if (headerInput) headerInput.value = veoKey;
+            }
+            if (openaiKey) {
+                OPENAI_API_KEY = openaiKey;
+                localStorage.setItem('openaiApiKey', openaiKey);
+                const headerInput = document.getElementById('openaiApiKeyInput');
+                if (headerInput) headerInput.value = openaiKey;
+            }
+            if (anthropicKey) {
+                ANTHROPIC_API_KEY = anthropicKey;
+                localStorage.setItem('anthropicApiKey', anthropicKey);
+                const headerInput = document.getElementById('anthropicApiKeyInput');
+                if (headerInput) headerInput.value = anthropicKey;
+            }
+            
             closeSettingsModal();
             showToast('Settings saved!', 'success');
         }
