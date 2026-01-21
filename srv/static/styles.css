@@ -810,6 +810,10 @@ footer {
     padding: 1.5rem 0;
 }
 
+.character-art-section {
+    grid-column: 1 / -1;
+}
+
 .btn-generate-storyboard {
     padding: 1rem 3rem;
     font-size: 1.1rem;
