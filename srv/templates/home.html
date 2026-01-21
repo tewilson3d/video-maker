@@ -176,22 +176,38 @@
                     <div class="section-header">
                         <h2>👤 Character Prompts</h2>
                     </div>
-                    <div id="characterPrompts" class="character-list">
-                        <div class="prompt-card character-card" data-index="0">
-                            <div class="character-header">
-                                <span class="character-label">Character 1</span>
-                                <button type="button" class="btn-icon-small btn-remove-character" title="Remove">✕</button>
-                            </div>
-                            <textarea 
-                                class="character-description"
-                                placeholder="e.g., 'Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek. She's determined but haunted by her past.'"
-                                rows="3"
-                            ></textarea>
+                    
+                    <!-- Initial character input (like shot sequence) -->
+                    <div id="characterSequenceInput" class="prompt-card">
+                        <div class="input-header">
+                            <label>Character Descriptions</label>
                         </div>
+                        <textarea 
+                            id="characterSequenceText"
+                            placeholder="Enter each character on a new line, e.g.:
+1. Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek
+2. Marcus - A grizzled veteran knight, short gray beard, weathered face, kind brown eyes
+3. The Shadow - Mysterious hooded figure, only glowing red eyes visible"
+                            rows="8"
+                        ></textarea>
+                        <span class="hint">Enter each character description on a new line. Include name, appearance, and key details.</span>
                     </div>
-                    <button type="button" class="btn-add" id="addCharacterBtn">
-                        <span>+</span> Add Character
+                    <button type="button" class="btn-parse-shots" id="parseCharactersBtn">
+                        <span>👤</span> Create Character Cards
                     </button>
+                    
+                    <!-- Generated Character Cards (hidden initially) -->
+                    <div id="characterPrompts" class="character-list" style="display: none;">
+                    </div>
+                    
+                    <div id="characterActions" class="keyframe-actions" style="display: none;">
+                        <button type="button" class="btn-add" id="addCharacterBtn">
+                            <span>+</span> Add Character
+                        </button>
+                        <button type="button" class="btn-reset-shots" id="resetCharactersBtn">
+                            <span>↺</span> Reset to Sequence Input
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Character Art -->
@@ -2242,13 +2258,65 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         });
 
         // Character prompt management
-        let characterCount = 1;
+        let characterCount = 0;
         const characterContainer = document.getElementById('characterPrompts');
+        const characterSequenceInput = document.getElementById('characterSequenceInput');
+        const characterActions = document.getElementById('characterActions');
         
-        document.getElementById('addCharacterBtn').addEventListener('click', () => {
+        // Parse character sequence into individual cards
+        document.getElementById('parseCharactersBtn').addEventListener('click', () => {
+            const text = document.getElementById('characterSequenceText').value.trim();
+            if (!text) {
+                alert('Please enter character descriptions');
+                return;
+            }
+
+            // Parse lines - split by newlines, filter empty lines
+            const lines = text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (lines.length === 0) {
+                alert('No characters found. Enter each character on a new line.');
+                return;
+            }
+
+            // Clear existing characters
+            characterContainer.innerHTML = '';
+            characterCount = 0;
+
+            // Create character card for each line
+            lines.forEach((line, index) => {
+                // Remove leading numbers/bullets like "1." or "1)" or "-" or "*"
+                const cleanedLine = line.replace(/^[\d]+[.)\-:]?\s*|^[-*•]\s*/g, '').trim();
+                addCharacterCard(cleanedLine);
+            });
+
+            // Show character cards, hide sequence input
+            characterSequenceInput.style.display = 'none';
+            document.getElementById('parseCharactersBtn').style.display = 'none';
+            characterContainer.style.display = 'block';
+            characterActions.style.display = 'flex';
+            updateRemoveButtons();
+        });
+
+        // Reset to sequence input
+        document.getElementById('resetCharactersBtn').addEventListener('click', () => {
+            if (confirm('This will clear all character cards. Continue?')) {
+                characterContainer.innerHTML = '';
+                characterContainer.style.display = 'none';
+                characterActions.style.display = 'none';
+                characterSequenceInput.style.display = 'block';
+                document.getElementById('parseCharactersBtn').style.display = 'block';
+                characterCount = 0;
+            }
+        });
+
+        function addCharacterCard(description = '') {
+            characterCount++;
             const card = document.createElement('div');
             card.className = 'prompt-card character-card';
-            card.dataset.index = characterCount;
+            card.dataset.index = characterCount - 1;
             card.innerHTML = `
                 <div class="character-header">
                     <span class="character-label">Character ${characterCount}</span>
@@ -2256,12 +2324,15 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 </div>
                 <textarea 
                     class="character-description"
-                    placeholder="e.g., 'Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek. She's determined but haunted by her past.'"
+                    placeholder="e.g., 'Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek.'"
                     rows="3"
-                ></textarea>
+                >${description}</textarea>
             `;
             characterContainer.appendChild(card);
-            characterCount++;
+        }
+        
+        document.getElementById('addCharacterBtn').addEventListener('click', () => {
+            addCharacterCard();
             renumberCharacters();
             updateRemoveButtons();
         });
@@ -3373,15 +3444,26 @@ Story context: ${storyContext}`;
 
             // Load characters
             if (project.characters && project.characters.length > 0) {
+                // Show character cards, hide sequence input
+                characterSequenceInput.style.display = 'none';
+                document.getElementById('parseCharactersBtn').style.display = 'none';
+                characterContainer.style.display = 'block';
+                characterActions.style.display = 'flex';
+                
                 // Clear existing and add new
-                const container = document.getElementById('characterPrompts');
-                container.innerHTML = '';
+                characterContainer.innerHTML = '';
                 characterCount = 0;
                 
                 project.characters.forEach(char => {
                     addCharacterCard(char.description);
                 });
                 updateRemoveButtons();
+            } else {
+                // Show sequence input, hide character cards
+                characterSequenceInput.style.display = 'block';
+                document.getElementById('parseCharactersBtn').style.display = 'block';
+                characterContainer.style.display = 'none';
+                characterActions.style.display = 'none';
             }
 
             // Load character art if available
@@ -3423,25 +3505,6 @@ Story context: ${storyContext}`;
             }
 
             // Image provider is now always gemini, no need to load
-        }
-
-        function addCharacterCard(description = '') {
-            characterCount++;
-            const card = document.createElement('div');
-            card.className = 'prompt-card character-card';
-            card.dataset.index = characterCount - 1;
-            card.innerHTML = `
-                <div class="character-header">
-                    <span class="character-label">Character ${characterCount}</span>
-                    <button type="button" class="btn-icon-small btn-remove-character" title="Remove">✕</button>
-                </div>
-                <textarea 
-                    class="character-description"
-                    placeholder="e.g., 'Elena - A fierce warrior with long silver hair, piercing blue eyes, and a scar across her left cheek. She's determined but haunted by her past.'"
-                    rows="3"
-                >${description}</textarea>
-            `;
-            document.getElementById('characterPrompts').appendChild(card);
         }
 
         // Form submission
