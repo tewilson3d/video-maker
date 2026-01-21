@@ -2686,3 +2686,369 @@ footer {
 .file-tree li {
     padding: 0.25rem 0;
 }
+
+/* Scene Editor Modal */
+.modal-content.scene-editor-modal {
+    max-width: 1100px !important;
+    width: 95%;
+    max-height: 90vh;
+}
+
+.scene-editor-modal .modal-body {
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+    padding: 1.5rem;
+}
+
+.scene-editor-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+
+.frame-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.frame-section h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.frame-hint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.optional-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--accent-color);
+    border-radius: 4px;
+    font-weight: normal;
+}
+
+.frame-preview {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.frame-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.frame-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.frame-placeholder span {
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+.frame-placeholder p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.frame-placeholder small {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.frame-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.frame-actions button {
+    flex: 1;
+    min-width: 80px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+.frame-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    color: var(--text-secondary);
+}
+
+.frame-arrow span {
+    font-size: 2rem;
+}
+
+.frame-arrow p {
+    margin: 0.5rem 0 0;
+    font-size: 0.75rem;
+    text-align: center;
+    max-width: 100px;
+}
+
+.scene-description-section {
+    margin-bottom: 1rem;
+}
+
+.scene-description-section h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.scene-description-section textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.scene-description-section textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.scene-settings-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.setting-item label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.setting-item select {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.btn-remove {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    color: #ef4444 !important;
+}
+
+.btn-remove:hover {
+    background: rgba(239, 68, 68, 0.3) !important;
+}
+
+.last-frame-indicator {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    background: rgba(34, 197, 94, 0.2);
+    border-radius: 4px;
+    margin-left: auto;
+}
+
+@media (max-width: 768px) {
+    .scene-editor-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .frame-arrow {
+        flex-direction: row;
+        padding: 0.5rem;
+    }
+    
+    .frame-arrow span {
+        transform: rotate(90deg);
+    }
+}
+
+/* Video Clip Generation Styles */
+.clip-preview {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.clip-preview.generating {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2a2a4e 100%);
+}
+
+.clip-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.clip-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.clip-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+}
+
+.clip-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.clip-duration {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding: 0.2rem 0.5rem;
+    background: var(--bg-primary);
+    border-radius: 4px;
+}
+
+.clip-status {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+}
+
+.clip-status.pending {
+    background: rgba(99, 102, 241, 0.8);
+}
+
+.clip-status.ready {
+    background: rgba(34, 197, 94, 0.8);
+}
+
+.clip-status.error {
+    background: rgba(239, 68, 68, 0.8);
+}
+
+.video-clips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.video-placeholder {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    text-align: center;
+    gap: 0.5rem;
+}
+
+.placeholder-icon {
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+/* Clip Action Buttons */
+.clip-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.clip-preview:hover .clip-actions {
+    opacity: 1;
+}
+
+.clip-actions button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.clip-actions button:hover {
+    background: rgba(99, 102, 241, 0.8);
+}
+
+.clip-status.ready {
+    background: rgba(99, 102, 241, 0.8);
+}
+
+/* Video Actions */
+.video-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.btn-external {
+    text-decoration: none;
+    font-size: 0.85rem;
+}

@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-01-18T08:42:10Z",
+  "storyboard": {
+    "characters": [],
+    "scenes": [
+      {
+        "duration": 5,
+        "id": "scene_1",
+        "imageUrl": "https://placehold.co/512x288/1a1a2e/ffffff?text=Scene+1",
+        "narration": "The knight prepares for battle"
+      },
+      {
+        "duration": 5,
+        "id": "scene_2",
+        "imageUrl": "https://placehold.co/512x288/2a1a3e/ffffff?text=Scene+2",
+        "lastFrameUrl": "https://placehold.co/512x288/3a2a4e/ffffff?text=End",
+        "narration": "Journey through the forest"
+      }
+    ],
+    "storyPrompt": "A knight's epic journey"
+  },
+  "videoClips": [
+    {
+      "aspectRatio": "16:9",
+      "duration": 5,
+      "firstFrameUrl": "https://placehold.co/512x288/1a1a2e/ffffff?text=Scene+1",
+      "fps": 24,
+      "generatedPrompt": "The knight prepares for battle\n\nContext: A knight's epic journey\n\nStyle: Cinematic, smooth motion, high quality video.",
+      "lastFrameUrl": null,
+      "prompt": "The knight prepares for battle",
+      "sceneId": "scene_1",
+      "sceneIndex": 0,
+      "status": "pending",
+      "storyContext": "A knight's epic journey",
+      "videoUrl": null
+    },
+    {
+      "aspectRatio": "16:9",
+      "duration": 5,
+      "firstFrameUrl": "https://placehold.co/512x288/2a1a3e/ffffff?text=Scene+2",
+      "fps": 24,
+      "generatedPrompt": "Journey through the forest\n\nContext: A knight's epic journey\n\nStyle: Cinematic, smooth motion, high quality video.",
+      "lastFrameUrl": "https://placehold.co/512x288/3a2a4e/ffffff?text=End",
+      "prompt": "Journey through the forest",
+      "sceneId": "scene_2",
+      "sceneIndex": 1,
+      "status": "pending",
+      "storyContext": "A knight's epic journey",
+      "videoUrl": null
+    }
+  ]
+}

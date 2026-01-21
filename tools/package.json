@@ -1,5 +1,5 @@
 {
-  "name": "frameforge",
+  "name": "video-editor",
   "version": "1.0.0",
   "description": "Web-based video editing tool",
   "main": "index.js",
