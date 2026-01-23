@@ -2487,14 +2487,35 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             }
         });
 
-        function addKeyframeCard(description = '') {
+        function addKeyframeCard(keyframeData = '') {
             keyframeCount++;
             const card = document.createElement('div');
             card.className = 'prompt-card keyframe-card';
             card.dataset.index = keyframeCount - 1;
+            
+            // Handle both string (legacy) and object format
+            let description = '';
+            let generationDuration = 5;
+            let editDuration = 3;
+            
+            if (typeof keyframeData === 'string') {
+                description = keyframeData;
+            } else if (keyframeData && typeof keyframeData === 'object') {
+                description = keyframeData.description || '';
+                generationDuration = keyframeData.generationDuration || 5;
+                editDuration = keyframeData.editDuration || 3;
+            }
+            
+            card.dataset.generationDuration = generationDuration;
+            card.dataset.editDuration = editDuration;
+            
             card.innerHTML = `
                 <div class="keyframe-header">
                     <span class="keyframe-number">Keyframe ${keyframeCount}</span>
+                    <div class="keyframe-durations">
+                        <span class="duration-badge gen-duration" title="Veo generation length">Gen: ${generationDuration}s</span>
+                        <span class="duration-badge edit-duration" title="Duration in final edit">Edit: ${editDuration}s</span>
+                    </div>
                     <button type="button" class="btn-icon-small btn-remove-keyframe" title="Remove">✕</button>
                 </div>
                 <textarea 
@@ -2502,7 +2523,31 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                     placeholder="Describe this scene: what's happening, who's in frame, camera angle, mood..."
                     rows="3"
                 >${description}</textarea>
+                <div class="keyframe-duration-inputs" style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: #888;">
+                        Gen:
+                        <select class="gen-duration-select" style="padding: 0.25rem; background: #1a1a2e; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; font-size: 0.75rem;">
+                            <option value="5" ${generationDuration === 5 ? 'selected' : ''}>5s</option>
+                            <option value="8" ${generationDuration === 8 ? 'selected' : ''}>8s</option>
+                        </select>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: #888;">
+                        Edit:
+                        <input type="number" class="edit-duration-input" value="${editDuration}" min="0.5" max="30" step="0.5" style="width: 50px; padding: 0.25rem; background: #1a1a2e; border: 1px solid #333; border-radius: 4px; color: #e0e0e0; font-size: 0.75rem;">s
+                    </label>
+                </div>
             `;
+            
+            // Add event listeners for duration changes
+            card.querySelector('.gen-duration-select').addEventListener('change', (e) => {
+                card.dataset.generationDuration = e.target.value;
+                card.querySelector('.gen-duration').textContent = `Gen: ${e.target.value}s`;
+            });
+            card.querySelector('.edit-duration-input').addEventListener('change', (e) => {
+                card.dataset.editDuration = e.target.value;
+                card.querySelector('.edit-duration').textContent = `Edit: ${e.target.value}s`;
+            });
+            
             keyframeContainer.appendChild(card);
         }
         
@@ -3701,9 +3746,12 @@ You will be given a rough idea for a story/video. You should use your skills to 
 Respond with a JSON object containing:
 1. "storyPrompt": An expanded, more detailed version of the story (2-3 sentences max)
 2. "characters": An array of character descriptions. Each should include: name, gender, age, body build, race, face details, eye color, hair style, hair length, hair color, outfit (head to toe), and other key details.
-3. "keyframes": An array of shot descriptions. Each should be a detailed visual description of what's in the shot, including camera angle (Closeup, Wide, Mid, etc.), and what's happening. Be specific about what is SEEN, not character names.
+3. "keyframes": An array of shot objects. Each keyframe object should have:
+   - "description": A detailed visual description of what's in the shot, including camera angle (Closeup, Wide, Mid, etc.), and what's happening. Be specific about what is SEEN, not character names.
+   - "generationDuration": How long Veo3 should generate the clip (MUST be 5 or 8 seconds - use 8 for shots with more motion/action, 5 for simpler shots)
+   - "editDuration": How long this clip should appear in the final edited video (can be any number, typically 1-5 seconds - use shorter for quick cuts, longer for impactful moments)
 
-Example keyframe: "Closeup - A weathered hand slides a credit card across a dimly lit bar counter, fingers brushing against painted nails"
+Example keyframe: { "description": "Closeup - A weathered hand slides a credit card across a dimly lit bar counter, fingers brushing against painted nails", "generationDuration": 5, "editDuration": 2.5 }
 
 Return ONLY valid JSON, no markdown code blocks.`;
 
@@ -3794,7 +3842,11 @@ Return ONLY valid JSON, no markdown code blocks.`;
             document.querySelectorAll('.keyframe-card').forEach(card => {
                 const description = card.querySelector('.keyframe-description').value.trim();
                 if (description) {
-                    keyframes.push({ description });
+                    keyframes.push({ 
+                        description,
+                        generationDuration: parseInt(card.dataset.generationDuration) || 5,
+                        editDuration: parseFloat(card.dataset.editDuration) || 3
+                    });
                 }
             });
 
@@ -3813,6 +3865,9 @@ Return ONLY valid JSON, no markdown code blocks.`;
                 narration: kf.description,
                 imagePrompt: kf.description,
                 imageUrl: null, // Will be filled by Gemini
+                generationDuration: kf.generationDuration || 5,  // How long Veo generates
+                editDuration: kf.editDuration || 3,              // How long in final edit
+                duration: kf.generationDuration || 5,            // Legacy field (uses generation duration)
                 status: 'pending'
             }));
 
