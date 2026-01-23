@@ -55,3 +55,4 @@ This template uses sqlite (`db.sqlite3`). SQL queries are managed with sqlc.
 - `srv`: HTTP server logic (handlers)
 - `srv/templates`: Go HTML templates
 - `db`: SQLite open + migrations (001-base.sql)
+# Test push Fri Jan 23 07:05:11 UTC 2026
