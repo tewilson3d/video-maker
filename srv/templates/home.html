@@ -3010,6 +3010,9 @@ Story context: ${storyContext}`;
                         narration: narration || existingScene.narration || '',
                         imagePrompt: existingScene.imagePrompt || '',
                         imageUrl: img?.src || existingScene.imageUrl || null,
+                        videoUrl: existingScene.videoUrl || null,
+                        lastFrameUrl: existingScene.lastFrameUrl || null,
+                        duration: existingScene.duration || 5,
                         status: existingScene.status || 'complete'
                     });
                     
