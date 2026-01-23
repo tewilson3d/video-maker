@@ -1,36 +1,5 @@
 {
-  "characterArt": [
-    {
-      "imageFile": "character_1.png",
-      "index": 1,
-      "isLocal": true
-    },
-    {
-      "imageFile": "character_2.png",
-      "index": 2,
-      "isLocal": true
-    },
-    {
-      "imageFile": "character_3.png",
-      "index": 3,
-      "isLocal": true
-    },
-    {
-      "imageFile": "character_4.png",
-      "index": 4,
-      "isLocal": true
-    },
-    {
-      "imageFile": "character_5.png",
-      "index": 5,
-      "isLocal": true
-    },
-    {
-      "imageFile": "character_6.png",
-      "index": 6,
-      "isLocal": true
-    }
-  ],
+  "artImages": [],
   "characters": [
     {
       "description": "A near-future human infantry soldier wearing a biomechanical combat suit, face partially visible through a transparent armored visor, male, early 30s, exhausted but emotionally flat expression, subtle scars and grime, realistic military posture, standing in ruined battlefield environment, muted color palette, overcast lighting, ultra-detailed, photorealistic, cinematic realism",
@@ -57,57 +26,20 @@
       "index": 6
     }
   ],
-  "imageProvider": "gemini",
-  "keyframes": [
-    {
-      "description": "Shot 01: Interior visor view activates in darkness, minimal clinical HUD flicker, audio dampened, controlled breathing audible, cold and restrained tone.",
-      "index": 1
-    },
-    {
-      "description": "Shot 02: Full-body view of a human soldier advancing through ruined battlefield terrain, living biomechanical suit fused to body, movement unnaturally smooth and efficient, muted color palette, overcast lighting.",
-      "index": 2
-    },
-    {
-      "description": "Shot 03: Distant alien enemy silhouettes emerge suddenly through smoke and debris, indistinct anatomy, threat detected before visual focus, no dramatic emphasis.",
-      "index": 3
-    },
-    {
-      "description": "Shot 04: Soldier engages in combat with abrupt precision, weapon fires automatically, reload completes without conscious action, camera cuts feel optimized rather than cinematic.",
-      "index": 4
-    },
-    {
-      "description": "Shot 05: Close-range melee strike executed with mechanical efficiency, suit-assisted movement overrides natural human motion, no hesitation or emotional reaction.",
-      "index": 5
-    },
-    {
-      "description": "Shot 06: Soldier takes a hit mid-action, impact muted, biomechanical fibers immediately seal the wound, organic material knitting seamlessly, no slowdown in movement.",
-      "index": 6
-    },
-    {
-      "description": "Shot 07: Soldier begins to aim toward one target, suit subtly redirects body toward a higher-priority threat, brief micro-hesitation followed by compliance.",
-      "index": 7
-    },
-    {
-      "description": "Shot 08: Nearby allied soldier is killed abruptly, body falls out of frame without focus or slow motion, protagonist continues forward without stopping.",
-      "index": 8
-    },
-    {
-      "description": "Shot 09: Interior visor HUD displays clinical status text such as “stress regulated” and “efficiency optimal,” visuals remain minimal and medical, no dramatic UI.",
-      "index": 9
-    },
-    {
-      "description": "Shot 10: Combat noise fades, battlefield settles into smoke and stillness, soldier stands momentarily motionless, suit hum steady and dominant, human breath barely audible.",
-      "index": 10
-    }
-  ],
-  "savedAt": "2026-01-20T04:09:47Z",
+  "imageProvider": "",
+  "keyframes": null,
+  "savedAt": "2026-01-21T14:49:50Z",
   "scenes": [
     {
+      "description": "Shot 01: Interior visor view activates in darkness, minimal clinical HUD flicker, audio dampened, controlled breathing audible, cold and restrained tone.",
+      "duration": 5,
       "id": "scene_1",
       "imageFile": "scene_1.png",
       "imagePrompt": "Shot 01: Interior visor view activates in darkness, minimal clinical HUD flicker, audio dampened, controlled breathing audible, cold and restrained tone.",
+      "lastFrameUrl": null,
       "narration": "Shot 01: Interior visor view activates in darkness, minimal clinical HUD flicker, audio dampened, controlled breathing audible, cold and restrained tone.",
-      "status": "complete"
+      "status": "complete",
+      "videoFile": "scene_1.mp4"
     },
     {
       "id": "scene_2",
