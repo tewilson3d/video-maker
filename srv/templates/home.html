@@ -1468,10 +1468,32 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             for (const scene of scenes) {
                 const processedScene = { ...scene };
                 
-                // Convert video blob URL to base64
-                if (scene.videoUrl && scene.videoUrl.startsWith('blob:')) {
-                    console.log('Converting blob video to base64 for scene:', scene.id || processedScenes.length);
-                    processedScene.videoUrl = await blobUrlToBase64DataUrl(scene.videoUrl);
+                // Convert video URLs to base64 for saving
+                if (scene.videoUrl) {
+                    if (scene.videoUrl.startsWith('blob:')) {
+                        console.log('Converting blob video to base64 for scene:', processedScenes.length + 1);
+                        processedScene.videoUrl = await blobUrlToBase64DataUrl(scene.videoUrl);
+                    } else if (scene.videoUrl.startsWith('http')) {
+                        // Download remote video and convert to base64
+                        console.log('Downloading remote video for scene:', processedScenes.length + 1);
+                        try {
+                            const response = await fetch(scene.videoUrl);
+                            if (response.ok) {
+                                const blob = await response.blob();
+                                processedScene.videoUrl = await new Promise((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => resolve(reader.result);
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(blob);
+                                });
+                                console.log('Video converted to base64 for scene:', processedScenes.length + 1);
+                            } else {
+                                console.warn('Failed to download video:', response.status);
+                            }
+                        } catch (err) {
+                            console.error('Failed to convert remote video:', err);
+                        }
+                    }
                 }
                 
                 processedScenes.push(processedScene);
