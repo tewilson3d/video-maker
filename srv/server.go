@@ -713,6 +713,50 @@ func (s *Server) HandleSaveProject(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Save editor project JSON alongside project.json
+func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ProjectPath   string         `json:"projectPath"`
+		EditorProject map[string]any `json:"editorProject"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.ProjectPath == "" {
+		http.Error(w, "Project path is required", http.StatusBadRequest)
+		return
+	}
+
+	// Create project directory if it doesn't exist
+	if err := os.MkdirAll(req.ProjectPath, 0755); err != nil {
+		http.Error(w, "Failed to create project directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Save editor-project.json
+	jsonPath := filepath.Join(req.ProjectPath, "editor-project.json")
+	jsonData, err := json.MarshalIndent(req.EditorProject, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to create JSON: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := os.WriteFile(jsonPath, jsonData, 0644); err != nil {
+		http.Error(w, "Failed to write editor project: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("saved editor project", "path", jsonPath)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"path":    jsonPath,
+	})
+}
+
 // cleanImageURLs removes base64 data URLs from items, keeping only imageFile references
 func cleanImageURLs(items []map[string]any) []map[string]any {
 	result := make([]map[string]any, len(items))
@@ -1347,6 +1391,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/generate-art-images", s.HandleGenerateArtImages)
 	mux.HandleFunc("POST /api/generate-video-clips", s.HandleGenerateVideoClips)
 	mux.HandleFunc("POST /api/save-project", s.HandleSaveProject)
+	mux.HandleFunc("POST /api/save-editor-project", s.HandleSaveEditorProject)
 	mux.HandleFunc("POST /api/save-keyframe", s.HandleSaveKeyframe)
 	mux.HandleFunc("POST /api/generate-video", s.HandleGenerateVideo)
 	mux.HandleFunc("POST /api/save-video-clips", s.HandleSaveVideoClips)

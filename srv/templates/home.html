@@ -1789,13 +1789,17 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             // Wait for iframe to be ready, then send data
             const editorFrame = document.getElementById('editorFrame');
             
-            const sendToEditor = () => {
+            const sendToEditor = async () => {
                 if (editorFrame && editorFrame.contentWindow) {
                     console.log('Sending storyboard to editor iframe...');
                     editorFrame.contentWindow.postMessage({
                         type: 'loadStoryboard',
                         storyboard: storyboardData
                     }, '*');
+                    
+                    // Also save editor project JSON to server
+                    await saveEditorProjectToServer(storyboardData);
+                    
                     showToast(`Sent ${scenesWithMedia.length} clips to editor!`, 'success');
                 } else {
                     showToast('Editor not ready', 'error');
@@ -1810,6 +1814,106 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 editorFrame.addEventListener('load', () => {
                     setTimeout(sendToEditor, 500);
                 }, { once: true });
+            }
+        }
+
+        // Save editor project JSON to server alongside project.json
+        async function saveEditorProjectToServer(storyboardData) {
+            let projectPath = PROJECT_SETTINGS.projectPath || PROJECT_PATH;
+            if (!projectPath || projectPath === '/home/exedev/video-maker/projects') {
+                console.log('No project path set, skipping editor project save');
+                return;
+            }
+
+            // Build editor project format (same as what generateProjectFromStoryboard creates)
+            const fps = storyboardData.settings?.fps || 30;
+            const secondsToFrames = (s) => Math.round(s * fps);
+            
+            let currentFrame = 0;
+            const assets = storyboardData.scenes.map((scene, index) => {
+                const hasVideo = !!scene.videoUrl;
+                return {
+                    id: `asset_scene_${index + 1}`,
+                    type: hasVideo ? 'video' : 'image',
+                    src: hasVideo ? scene.videoUrl : scene.imageUrl,
+                    name: `Scene ${index + 1}`,
+                    width: storyboardData.settings?.canvasWidth || 1920,
+                    height: storyboardData.settings?.canvasHeight || 1080
+                };
+            });
+
+            const clips = storyboardData.scenes.map((scene, index) => {
+                const editDuration = scene.editDuration || 3;
+                const clipDuration = secondsToFrames(editDuration);
+                const startFrame = currentFrame;
+                currentFrame += clipDuration;
+                
+                return {
+                    id: `clip_scene_${index + 1}`,
+                    assetId: `asset_scene_${index + 1}`,
+                    start: startFrame,
+                    duration: clipDuration,
+                    inPoint: 0,
+                    outPoint: clipDuration,
+                    keyframes: {
+                        position: [{ time: 0, value: { x: 0, y: 0 }, easing: 'linear' }],
+                        scale: [{ time: 0, value: { x: 1, y: 1 }, easing: 'linear' }],
+                        rotation: [{ time: 0, value: 0, easing: 'linear' }],
+                        opacity: [{ time: 0, value: 1, easing: 'linear' }]
+                    }
+                };
+            });
+
+            const editorProject = {
+                id: `project_${Date.now()}`,
+                name: storyboardData.storyPrompt?.substring(0, 50) || 'Untitled Project',
+                assets: assets,
+                timeline: {
+                    tracks: [
+                        {
+                            id: 'track_video_1',
+                            type: 'video',
+                            name: 'Video 1',
+                            clips: clips,
+                            visible: true,
+                            locked: false
+                        },
+                        {
+                            id: 'track_audio_1',
+                            type: 'audio',
+                            name: 'Audio 1',
+                            clips: [],
+                            visible: true,
+                            locked: false
+                        }
+                    ],
+                    currentTime: 0,
+                    duration: currentFrame,
+                    fps: fps,
+                    zoom: 1
+                },
+                canvasWidth: storyboardData.settings?.canvasWidth || 1920,
+                canvasHeight: storyboardData.settings?.canvasHeight || 1080,
+                backgroundColor: '#000000'
+            };
+
+            try {
+                const response = await fetch('/api/save-editor-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectPath: projectPath,
+                        editorProject: editorProject
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log('Editor project saved to:', projectPath + '/editor-project.json');
+                } else {
+                    console.error('Failed to save editor project');
+                }
+            } catch (err) {
+                console.error('Error saving editor project:', err);
             }
         }
 
