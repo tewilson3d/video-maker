@@ -1531,6 +1531,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const currentState = get();
       const newTime = currentState.project.timeline.currentTime + (1 / currentState.playback.fps);
       
+      // Duration is in seconds
       if (newTime >= currentState.project.timeline.duration) {
         // Stop at end
         currentState.stop();

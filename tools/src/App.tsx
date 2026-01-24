@@ -659,11 +659,12 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
             newProject.assets.push(videoAsset);
             
             // Create video clip with true duration
+            // Note: start and duration are in SECONDS for timeline positioning
             const videoClip: Clip = {
               id: crypto.randomUUID(),
               assetId: videoAssetId,
-              start: currentTime * fps, // Convert to frames
-              duration: videoData.duration * fps, // True duration in frames
+              start: currentTime, // In seconds
+              duration: videoData.duration, // True duration in seconds
               inPoint: 0,
               outPoint: videoData.duration, // True duration in seconds
               keyframes: {
@@ -700,11 +701,12 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
                 newProject.assets.push(audioAsset);
                 
                 // Create audio clip
+                // Note: start and duration are in SECONDS
                 const audioClip: Clip = {
                   id: crypto.randomUUID(),
                   assetId: audioAssetId,
-                  start: currentTime * fps,
-                  duration: videoData.duration * fps,
+                  start: currentTime,
+                  duration: videoData.duration,
                   inPoint: 0,
                   outPoint: videoData.duration
                 };
@@ -719,8 +721,8 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
             currentTime += videoData.duration;
           }
           
-          // Update timeline duration
-          newProject.timeline.duration = currentTime * fps;
+          // Update timeline duration (in seconds)
+          newProject.timeline.duration = currentTime;
           
           // Set canvas size from first video
           if (newProject.assets.length > 0) {
