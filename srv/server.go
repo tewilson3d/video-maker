@@ -802,8 +802,8 @@ func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Save edit.json (editor project state)
-	jsonPath := filepath.Join(req.ProjectPath, "edit.json")
+	// Save edit.vproj (editor project state - JSON format with .vproj extension)
+	jsonPath := filepath.Join(req.ProjectPath, "edit.vproj")
 	jsonData, err := json.MarshalIndent(req.EditorProject, "", "  ")
 	if err != nil {
 		http.Error(w, "Failed to create JSON: "+err.Error(), http.StatusInternalServerError)
@@ -815,7 +815,7 @@ func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	slog.Info("saved edit.json", "path", jsonPath)
+	slog.Info("saved edit.vproj", "path", jsonPath)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
