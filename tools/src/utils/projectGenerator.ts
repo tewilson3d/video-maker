@@ -7,9 +7,12 @@ export interface StoryboardScene {
   imagePrompt: string;
   imageUrl?: string;
   videoUrl?: string;           // URL to video clip if generated
+  imageFile?: string | null;   // Original image filename (e.g., "keyframe1.png")
+  videoFile?: string | null;   // Original video filename (e.g., "keyframe1_variant1.mp4")
   duration?: number;           // Legacy: in frames
   generationDuration?: number; // How long Veo generates (5 or 8 seconds)
   editDuration?: number;       // How long clip appears in final edit (seconds)
+  status?: string;             // 'pending' | 'generating' | 'complete' | 'error'
 }
 
 export interface StoryboardData {
@@ -36,12 +39,16 @@ export function generateProjectFromStoryboard(storyboard: StoryboardData): Proje
   const secondsToFrames = (seconds: number) => Math.round(seconds * settings.fps);
   
   // Helper to get clip duration in frames
-  // Priority: editDuration (seconds) > duration (frames) > default
+  // Priority: editDuration (seconds) > duration (seconds) > default
   const getClipDuration = (scene: StoryboardScene) => {
     if (scene.editDuration !== undefined) {
       return secondsToFrames(scene.editDuration);
     }
-    return scene.duration || settings.defaultSceneDuration;
+    // duration is in seconds (from project.json), convert to frames
+    if (scene.duration !== undefined) {
+      return secondsToFrames(scene.duration);
+    }
+    return settings.defaultSceneDuration;
   };
 
   // Create assets from scenes - prefer video over image

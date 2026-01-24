@@ -1,0 +1,346 @@
+{
+  "assets": [
+    {
+      "height": 1080,
+      "id": "asset_scene_1",
+      "name": "Scene 1",
+      "src": "blob:https://video-maker.exe.xyz/e8df52db-3501-4f54-8ee5-3022e44b06d0",
+      "type": "video",
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "id": "asset_scene_2",
+      "name": "Scene 2",
+      "src": "blob:https://video-maker.exe.xyz/e5bfb052-79f3-475f-8f88-9928570ff888",
+      "type": "video",
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "id": "asset_scene_3",
+      "name": "Scene 3",
+      "src": "blob:https://video-maker.exe.xyz/f2b71f58-915d-4490-a2e5-d4bc62afcfe4",
+      "type": "video",
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "id": "asset_scene_4",
+      "name": "Scene 4",
+      "src": "blob:https://video-maker.exe.xyz/be6b5fd9-f860-48cf-b26b-3940ef7758f9",
+      "type": "video",
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "id": "asset_scene_5",
+      "name": "Scene 5",
+      "src": "blob:https://video-maker.exe.xyz/c5c4755f-ba72-45b4-bf5e-5692699d9990",
+      "type": "video",
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "id": "asset_scene_6",
+      "name": "Scene 6",
+      "src": "blob:https://video-maker.exe.xyz/621562b8-84a8-4df9-b010-42d39d7fb5a1",
+      "type": "video",
+      "width": 1920
+    }
+  ],
+  "backgroundColor": "#000000",
+  "canvasHeight": 1080,
+  "canvasWidth": 1920,
+  "id": "project_1769235631677",
+  "name": "A near-future battlefield during an ongoing inters",
+  "timeline": {
+    "currentTime": 0,
+    "duration": 540,
+    "fps": 30,
+    "tracks": [
+      {
+        "clips": [
+          {
+            "assetId": "asset_scene_1",
+            "duration": 90,
+            "id": "clip_scene_1",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 90,
+            "start": 0
+          },
+          {
+            "assetId": "asset_scene_2",
+            "duration": 90,
+            "id": "clip_scene_2",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 90,
+            "start": 90
+          },
+          {
+            "assetId": "asset_scene_3",
+            "duration": 90,
+            "id": "clip_scene_3",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 90,
+            "start": 180
+          },
+          {
+            "assetId": "asset_scene_4",
+            "duration": 90,
+            "id": "clip_scene_4",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 90,
+            "start": 270
+          },
+          {
+            "assetId": "asset_scene_5",
+            "duration": 90,
+            "id": "clip_scene_5",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 90,
+            "start": 360
+          },
+          {
+            "assetId": "asset_scene_6",
+            "duration": 90,
+            "id": "clip_scene_6",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 90,
+            "start": 450
+          }
+        ],
+        "id": "track_video_1",
+        "locked": false,
+        "name": "Video 1",
+        "type": "video",
+        "visible": true
+      },
+      {
+        "clips": [],
+        "id": "track_audio_1",
+        "locked": false,
+        "name": "Audio 1",
+        "type": "audio",
+        "visible": true
+      }
+    ],
+    "zoom": 1
+  }
+}

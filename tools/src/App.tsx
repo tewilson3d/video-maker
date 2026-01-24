@@ -307,7 +307,13 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
   };
 
   // Send scenes to editor - generates proper Project JSON
-  const handleSendToEditor = (scenes: StoryboardScene[]) => {
+  const handleSendToEditor = async (scenes: StoryboardScene[]) => {
+    console.log('=== SEND TO EDITOR ===');
+    console.log('Scenes received:', scenes.length);
+    scenes.forEach((s, i) => {
+      console.log(`Scene ${i+1}: videoUrl=${s.videoUrl ? 'YES' : 'NO'}, imageUrl=${s.imageUrl ? 'YES' : 'NO'}`);
+    });
+
     // Create a storyboard with only selected scenes
     const selectedStoryboard: StoryboardData = {
       ...storyboardData,
@@ -317,11 +323,82 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
     // Generate the project from storyboard
     const generatedProject = generateProjectFromStoryboard(selectedStoryboard);
     
+    console.log('Generated project assets:', generatedProject.assets.length);
+    
+    // Load video/image elements for each asset
+    const assetsWithElements = await Promise.all(
+      generatedProject.assets.map(async (asset) => {
+        if (!asset.src) {
+          console.warn(`Asset ${asset.name} has no src`);
+          return asset;
+        }
+        
+        if (asset.type === 'video') {
+          return new Promise<typeof asset>((resolve) => {
+            const video = document.createElement('video');
+            video.crossOrigin = 'anonymous';
+            video.preload = 'auto';
+            video.muted = true;
+            
+            video.onloadedmetadata = () => {
+              console.log(`Video loaded: ${asset.name}, ${video.duration}s, ${video.videoWidth}x${video.videoHeight}`);
+              resolve({
+                ...asset,
+                element: video,
+                duration: video.duration * 30, // Convert to frames at 30fps
+                width: video.videoWidth,
+                height: video.videoHeight,
+              });
+            };
+            
+            video.onerror = (e) => {
+              console.error(`Failed to load video ${asset.name}:`, e);
+              resolve(asset); // Return asset without element
+            };
+            
+            video.src = asset.src;
+          });
+        } else if (asset.type === 'image') {
+          return new Promise<typeof asset>((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+              console.log(`Image loaded: ${asset.name}, ${img.naturalWidth}x${img.naturalHeight}`);
+              resolve({
+                ...asset,
+                element: img,
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+              });
+            };
+            
+            img.onerror = (e) => {
+              console.error(`Failed to load image ${asset.name}:`, e);
+              resolve(asset);
+            };
+            
+            img.src = asset.src;
+          });
+        }
+        
+        return asset;
+      })
+    );
+    
+    generatedProject.assets = assetsWithElements;
+    
+    console.log('Assets with elements loaded:', assetsWithElements.length);
+    assetsWithElements.forEach((a, i) => {
+      console.log(`Asset ${i+1}: type=${a.type}, hasElement=${!!a.element}, src=${a.src?.substring(0, 50)}...`);
+    });
+    console.log('======================');
+    
     // Load into editor
     setProject(generatedProject);
     
-    // Save project JSON
-    if (projectPath) {
+    // Save project JSON - skip for local projects
+    if (projectPath && !projectPath.startsWith('[LOCAL]')) {
       saveProjectToServer(generatedProject);
     }
 
@@ -359,11 +436,11 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
   };
 
   // Load project handler
-  const handleLoadProject = (data: { project?: Project; storyboard?: StoryboardData }) => {
+  const handleLoadProject = (data: { project?: Project; storyboard?: StoryboardData; localFolderHandle?: FileSystemDirectoryHandle }) => {
     if (data.storyboard) {
       setStoryboardData(data.storyboard);
-      // If storyboard has scenes with images, go to storyboard tab
-      if (data.storyboard.scenes.some(s => s.imageUrl)) {
+      // If storyboard has scenes with images or videos, go to storyboard tab
+      if (data.storyboard.scenes.some(s => s.imageUrl || s.videoUrl)) {
         setActiveTab('storyboard');
       }
     }
@@ -371,10 +448,66 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
       setProject(data.project);
       setActiveTab('editing');
     }
+    // Store localFolderHandle for later use (saving back to local folder)
+    if (data.localFolderHandle) {
+      (window as any).__localFolderHandle = data.localFolderHandle;
+    }
   };
 
   // Save project handler
   const handleSaveProject = async () => {
+    const isLocal = projectPath?.startsWith('[LOCAL]');
+    const localFolderHandle = (window as any).__localFolderHandle as FileSystemDirectoryHandle | undefined;
+
+    // If it's a local project, save to local filesystem
+    if (isLocal && localFolderHandle) {
+      try {
+        // Prepare the project data - strip blob URLs since they won't persist
+        const saveData = {
+          storyPrompt: storyboardData.storyPrompt,
+          characters: storyboardData.characters.map(c => ({
+            index: c.index,
+            description: c.description,
+            // Don't save blob imageUrl
+          })),
+          scenes: storyboardData.scenes.map(s => ({
+            id: s.id,
+            narration: s.narration,
+            imagePrompt: s.imagePrompt,
+            // Preserve original filenames from the loaded project
+            imageFile: s.imageFile || undefined,
+            videoFile: s.videoFile || undefined,
+            duration: s.duration,
+            status: s.status,
+          })),
+          settings: storyboardData.settings,
+          projectPath: localFolderHandle.name,
+          savedAt: new Date().toISOString(),
+        };
+
+        // Request write permission if needed
+        const permission = await (localFolderHandle as any).requestPermission({ mode: 'readwrite' });
+        if (permission !== 'granted') {
+          alert('Write permission denied. Cannot save to local folder.');
+          return;
+        }
+
+        // Write project.json
+        const fileHandle = await localFolderHandle.getFileHandle('project.json', { create: true });
+        const writable = await (fileHandle as any).createWritable();
+        await writable.write(JSON.stringify(saveData, null, 2));
+        await writable.close();
+
+        alert(`Project saved locally to ${localFolderHandle.name}/project.json`);
+        console.log('Saved local project:', saveData);
+      } catch (error: any) {
+        console.error('Failed to save local project:', error);
+        alert(`Failed to save locally: ${error.message}`);
+      }
+      return;
+    }
+
+    // Otherwise save to server
     let path = projectPath;
     if (!path) {
       path = prompt('Enter project path:', '/home/exedev/video-maker/projects/my-project') || '';

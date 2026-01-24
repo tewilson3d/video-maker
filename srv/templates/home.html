@@ -799,6 +799,8 @@
             firstFrame: null,
             lastFrame: null,
             videoUrl: null,
+            videoFile: null,   // Original filename
+            videoBlob: null,   // File blob for saving
             description: '',
             duration: 5
         };
@@ -858,13 +860,16 @@
                 videoPlaceholder.style.display = 'none';
                 removeVideoBtn.style.display = 'inline-block';
                 sceneEditorData.videoUrl = scene.videoUrl;
+                sceneEditorData.videoFile = scene.videoFile || null;  // Preserve existing filename
             } else {
                 videoPlayer.src = '';
                 videoPlayer.style.display = 'none';
                 videoPlaceholder.style.display = 'flex';
                 removeVideoBtn.style.display = 'none';
                 sceneEditorData.videoUrl = null;
+                sceneEditorData.videoFile = scene.videoFile || null;  // May still have filename from project.json
             }
+            sceneEditorData.videoBlob = null;  // Will be set if user uploads new video
             
             // Show modal
             document.getElementById('sceneEditorModal').style.display = 'flex';
@@ -1032,9 +1037,11 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             videoPlaceholder.style.display = 'none';
             document.getElementById('removeVideoClipBtn').style.display = 'inline-block';
             sceneEditorData.videoUrl = videoUrl;
+            sceneEditorData.videoFile = file.name;  // Store the original filename!
+            sceneEditorData.videoBlob = file;       // Store the file for local save
             
             e.target.value = '';
-            showToast('Video uploaded!', 'success');
+            showToast('Video uploaded: ' + file.name, 'success');
         });
 
         function removeVideoClip() {
@@ -1053,6 +1060,8 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             videoPlaceholder.style.display = 'flex';
             document.getElementById('removeVideoClipBtn').style.display = 'none';
             sceneEditorData.videoUrl = null;
+            sceneEditorData.videoFile = null;
+            sceneEditorData.videoBlob = null;
         }
 
         function saveSceneChanges() {
@@ -1064,6 +1073,8 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             scene.imageUrl = sceneEditorData.firstFrame;
             scene.lastFrameUrl = sceneEditorData.lastFrame;
             scene.videoUrl = sceneEditorData.videoUrl;
+            scene.videoFile = sceneEditorData.videoFile || scene.videoFile;  // Preserve the filename!
+            scene.videoBlob = sceneEditorData.videoBlob || null;  // Store blob for local save
             scene.narration = document.getElementById('sceneDescriptionInput').value;
             scene.description = document.getElementById('sceneDescriptionInput').value;
             scene.duration = parseInt(document.getElementById('sceneDuration').value);
@@ -3433,32 +3444,40 @@ Story context: ${storyContext}`;
             if (videosDir && localProjectData.scenes) {
                 for (let i = 0; i < localProjectData.scenes.length; i++) {
                     const scene = localProjectData.scenes[i];
+                    // Use the original filename if we have it, otherwise generate one
+                    const filename = scene.videoFile || `scene_${i + 1}.mp4`;
+                    
                     // Handle blob URLs by fetching and saving
                     if (scene.videoUrl && scene.videoUrl.startsWith('blob:')) {
                         try {
                             const response = await fetch(scene.videoUrl);
                             const blob = await response.blob();
-                            const filename = `scene_${i + 1}.mp4`;
                             const fileHandle = await videosDir.getFileHandle(filename, { create: true });
                             const writable = await fileHandle.createWritable();
                             await writable.write(blob);
                             await writable.close();
                             localProjectData.scenes[i].videoFile = filename;
                             delete localProjectData.scenes[i].videoUrl;
-                            console.log(`Saved video for scene ${i + 1}`);
+                            delete localProjectData.scenes[i].videoBlob;
+                            console.log(`Saved video for scene ${i + 1}: ${filename}`);
                         } catch (e) {
                             console.warn(`Could not save video for scene ${i + 1}:`, e);
                         }
                     } else if (scene.videoUrl && scene.videoUrl.startsWith('data:')) {
                         try {
-                            const filename = `scene_${i + 1}.mp4`;
                             await saveBase64ToFile(videosDir, filename, scene.videoUrl);
                             localProjectData.scenes[i].videoFile = filename;
                             delete localProjectData.scenes[i].videoUrl;
-                            console.log(`Saved video for scene ${i + 1}`);
+                            delete localProjectData.scenes[i].videoBlob;
+                            console.log(`Saved video for scene ${i + 1}: ${filename}`);
                         } catch (e) {
                             console.warn(`Could not save video for scene ${i + 1}:`, e);
                         }
+                    } else if (scene.videoFile) {
+                        // Keep existing videoFile reference, just clean up URLs
+                        localProjectData.scenes[i].videoFile = filename;
+                        delete localProjectData.scenes[i].videoUrl;
+                        delete localProjectData.scenes[i].videoBlob;
                     }
                 }
             }

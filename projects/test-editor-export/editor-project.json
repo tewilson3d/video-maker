@@ -1,0 +1,138 @@
+{
+  "assets": [
+    {
+      "height": 1080,
+      "id": "asset_scene_1",
+      "name": "Scene 1",
+      "src": "/static/videos/scene_0.mp4",
+      "type": "video",
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "id": "asset_scene_2",
+      "name": "Scene 2",
+      "src": "/static/videos/scene_1.mp4",
+      "type": "video",
+      "width": 1920
+    }
+  ],
+  "backgroundColor": "#000000",
+  "canvasHeight": 1080,
+  "canvasWidth": 1920,
+  "id": "project_1769233631882",
+  "name": "A mysterious stranger enters a bar",
+  "timeline": {
+    "currentTime": 0,
+    "duration": 120,
+    "fps": 30,
+    "tracks": [
+      {
+        "clips": [
+          {
+            "assetId": "asset_scene_1",
+            "duration": 75,
+            "id": "clip_scene_1",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 75,
+            "start": 0
+          },
+          {
+            "assetId": "asset_scene_2",
+            "duration": 45,
+            "id": "clip_scene_2",
+            "inPoint": 0,
+            "keyframes": {
+              "opacity": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 1
+                }
+              ],
+              "position": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 0,
+                    "y": 0
+                  }
+                }
+              ],
+              "rotation": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": 0
+                }
+              ],
+              "scale": [
+                {
+                  "easing": "linear",
+                  "time": 0,
+                  "value": {
+                    "x": 1,
+                    "y": 1
+                  }
+                }
+              ]
+            },
+            "outPoint": 45,
+            "start": 75
+          }
+        ],
+        "id": "track_video_1",
+        "locked": false,
+        "name": "Video 1",
+        "type": "video",
+        "visible": true
+      },
+      {
+        "clips": [],
+        "id": "track_audio_1",
+        "locked": false,
+        "name": "Audio 1",
+        "type": "audio",
+        "visible": true
+      }
+    ],
+    "zoom": 1
+  }
+}
