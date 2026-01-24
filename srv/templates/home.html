@@ -1739,7 +1739,7 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             }
         }
 
-        function exportStoryboard() {
+        async function exportStoryboard() {
             if (!currentStoryboard || !currentStoryboard.scenes || currentStoryboard.scenes.length === 0) {
                 showToast('No storyboard to export', 'error');
                 return;
@@ -1759,19 +1759,58 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 showToast('No video clips found. Generate video clips first, or images will be used.', 'warning');
             }
 
-            // Build storyboard data for the editor
-            const storyboardData = {
-                storyPrompt: currentStoryboard.storyPrompt || '',
-                characters: currentStoryboard.characters || [],
-                scenes: scenesWithMedia.map((scene, index) => ({
-                    id: scene.id || `scene_${index + 1}`,
+            showToast('Preparing clips for editor...', 'info');
+
+            // Upload any blob:// videos to the server to get persistent URLs
+            const processedScenes = [];
+            for (let i = 0; i < scenesWithMedia.length; i++) {
+                const scene = scenesWithMedia[i];
+                const processedScene = {
+                    id: scene.id || `scene_${i + 1}`,
                     narration: scene.narration || scene.description || '',
                     imagePrompt: scene.imagePrompt || scene.description || '',
                     imageUrl: scene.imageUrl || null,
                     videoUrl: scene.videoUrl || null,
                     generationDuration: scene.generationDuration || scene.duration || 5,
-                    editDuration: scene.editDuration || 3  // Default 3 seconds in edit
-                })),
+                    editDuration: scene.editDuration || 3
+                };
+
+                // If videoUrl is a blob URL, upload it to server
+                if (processedScene.videoUrl && processedScene.videoUrl.startsWith('blob:')) {
+                    try {
+                        console.log(`Uploading blob video for scene ${i}...`);
+                        const response = await fetch(processedScene.videoUrl);
+                        const blob = await response.blob();
+                        
+                        const formData = new FormData();
+                        formData.append('video', blob, `scene_${i}.mp4`);
+                        formData.append('sceneIndex', i.toString());
+                        
+                        const uploadResponse = await fetch('/api/upload-video', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (uploadResponse.ok) {
+                            const result = await uploadResponse.json();
+                            processedScene.videoUrl = result.videoUrl;
+                            console.log(`Uploaded scene ${i} video: ${result.videoUrl}`);
+                        } else {
+                            console.warn(`Failed to upload video for scene ${i}`);
+                        }
+                    } catch (err) {
+                        console.warn(`Error uploading video for scene ${i}:`, err);
+                    }
+                }
+
+                processedScenes.push(processedScene);
+            }
+
+            // Build storyboard data for the editor
+            const storyboardData = {
+                storyPrompt: currentStoryboard.storyPrompt || '',
+                characters: currentStoryboard.characters || [],
+                scenes: processedScenes,
                 settings: {
                     fps: 30,
                     canvasWidth: 1920,

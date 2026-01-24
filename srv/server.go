@@ -358,6 +358,73 @@ type VideoClip struct {
 	HasEndFrame bool   `json:"hasEndFrame"`
 }
 
+// HandleUploadVideo uploads a video blob to the static videos directory and returns the URL
+func (s *Server) HandleUploadVideo(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form (max 500MB)
+	if err := r.ParseMultipartForm(500 << 20); err != nil {
+		http.Error(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sceneIndex := r.FormValue("sceneIndex")
+	if sceneIndex == "" {
+		http.Error(w, "sceneIndex is required", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("video")
+	if err != nil {
+		http.Error(w, "Failed to get video file: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Create static videos directory if it doesn't exist
+	staticVideosDir := filepath.Join(s.StaticDir, "videos")
+	if err := os.MkdirAll(staticVideosDir, 0755); err != nil {
+		http.Error(w, "Failed to create videos directory: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Determine file extension from content type or original filename
+	ext := ".mp4"
+	if header.Filename != "" {
+		if strings.HasSuffix(strings.ToLower(header.Filename), ".webm") {
+			ext = ".webm"
+		} else if strings.HasSuffix(strings.ToLower(header.Filename), ".mov") {
+			ext = ".mov"
+		}
+	}
+
+	// Save with scene index as filename
+	filename := fmt.Sprintf("scene_%s%s", sceneIndex, ext)
+	filePath := filepath.Join(staticVideosDir, filename)
+
+	// Read file content
+	videoData, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Failed to read video data: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Write to static directory
+	if err := os.WriteFile(filePath, videoData, 0644); err != nil {
+		http.Error(w, "Failed to save video file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the static URL
+	staticURL := fmt.Sprintf("/static/videos/%s", filename)
+	slog.Info("uploaded video", "scene", sceneIndex, "path", filePath, "url", staticURL, "size", len(videoData))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success":  true,
+		"videoUrl": staticURL,
+		"filename": filename,
+	})
+}
+
 func (s *Server) HandleGenerateVideoClips(w http.ResponseWriter, r *http.Request) {
 	var req VideoClipRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -735,8 +802,8 @@ func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Save editor-project.json
-	jsonPath := filepath.Join(req.ProjectPath, "editor-project.json")
+	// Save edit.json (editor project state)
+	jsonPath := filepath.Join(req.ProjectPath, "edit.json")
 	jsonData, err := json.MarshalIndent(req.EditorProject, "", "  ")
 	if err != nil {
 		http.Error(w, "Failed to create JSON: "+err.Error(), http.StatusInternalServerError)
@@ -748,7 +815,7 @@ func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	slog.Info("saved editor project", "path", jsonPath)
+	slog.Info("saved edit.json", "path", jsonPath)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
@@ -1395,6 +1462,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/save-keyframe", s.HandleSaveKeyframe)
 	mux.HandleFunc("POST /api/generate-video", s.HandleGenerateVideo)
 	mux.HandleFunc("POST /api/save-video-clips", s.HandleSaveVideoClips)
+	mux.HandleFunc("POST /api/upload-video", s.HandleUploadVideo)
 	mux.HandleFunc("GET /api/load-project", s.HandleLoadProject)
 	mux.HandleFunc("GET /api/browse-folders", s.HandleBrowseFolders)
 	
