@@ -139,53 +139,7 @@ const Canvas: React.FC = () => {
     syncVideoElements();
   }, [project, playback.currentTime, canvasSize, playback.isPlaying, zoomLevel, panOffset]);
 
-  // Zoom functionality
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (!canvasRef.current) return;
-      
-      const canvas = canvasRef.current;
-      const rect = canvas.getBoundingClientRect();
-      
-      // Check if mouse is over the canvas
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      
-      if (mouseX >= 0 && mouseX <= rect.width && mouseY >= 0 && mouseY <= rect.height) {
-        e.preventDefault();
-        
-        // Find current zoom level index
-        const currentIndex = zoomLevels.findIndex(level => Math.abs(level - zoomLevel) < 0.001);
-        const zoomDirection = e.deltaY > 0 ? -1 : 1;
-        
-        let newIndex;
-        if (currentIndex === -1) {
-          // If not at exact zoom level, find closest one
-          const closest = zoomLevels.reduce((prev, curr) => 
-            Math.abs(curr - zoomLevel) < Math.abs(prev - zoomLevel) ? curr : prev
-          );
-          newIndex = zoomLevels.indexOf(closest) + zoomDirection;
-        } else {
-          newIndex = currentIndex + zoomDirection;
-        }
-        
-        // Clamp to valid range
-        newIndex = Math.max(0, Math.min(zoomLevels.length - 1, newIndex));
-        const newZoomLevel = zoomLevels[newIndex];
-        
-        if (newZoomLevel !== zoomLevel) {
-          // Simple centered zoom - no pan offset adjustment
-          setZoomLevel(newZoomLevel);
-        }
-      }
-    };
-
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.addEventListener('wheel', handleWheel, { passive: false });
-      return () => canvas.removeEventListener('wheel', handleWheel);
-    }
-  }, [zoomLevel, panOffset, canvasSize]);
+  // Scroll wheel zoom removed - canvas shows full frame at all times
 
   // Reset zoom on double-click
   const handleCanvasDoubleClick = () => {
@@ -762,11 +716,16 @@ const Canvas: React.FC = () => {
     ctx.scale(scaleX, scaleY);
 
     try {
-      // Render based on asset type
+      // Render based on asset type - scale to fit canvas (full frame)
       if (asset.type === 'video' && element instanceof HTMLVideoElement) {
-        ctx.drawImage(element, -element.videoWidth / 2, -element.videoHeight / 2);
+        // Scale video to fit canvas dimensions
+        const videoWidth = element.videoWidth;
+        const videoHeight = element.videoHeight;
+        // Draw centered at full canvas size
+        ctx.drawImage(element, -project.canvasWidth / 2, -project.canvasHeight / 2, project.canvasWidth, project.canvasHeight);
       } else if (asset.type === 'image' && element instanceof HTMLImageElement) {
-        ctx.drawImage(element, -element.naturalWidth / 2, -element.naturalHeight / 2);
+        // Scale image to fit canvas dimensions
+        ctx.drawImage(element, -project.canvasWidth / 2, -project.canvasHeight / 2, project.canvasWidth, project.canvasHeight);
       }
     } catch (error) {
       console.warn('Failed to render clip:', error);

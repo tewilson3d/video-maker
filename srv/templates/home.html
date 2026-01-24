@@ -3384,6 +3384,9 @@ Story context: ${storyContext}`;
                     }
                 }
                 
+                // Request and save editor state as videoedit.vproj
+                await saveEditorState(projectPath);
+                
             } catch (err) {
                 console.error('Save error:', err);
                 showToast('Error saving project: ' + err.message, 'error');
@@ -3392,6 +3395,78 @@ Story context: ${storyContext}`;
                 btn.disabled = false;
             }
         });
+        
+        // Save editor state as videoedit.vproj
+        async function saveEditorState(projectPath) {
+            const editorFrame = document.getElementById('editorFrame');
+            if (!editorFrame || !editorFrame.contentWindow) {
+                console.log('Editor iframe not available, skipping videoedit.vproj save');
+                return;
+            }
+            
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    window.removeEventListener('message', handleResponse);
+                    console.warn('Editor state request timed out');
+                    resolve(); // Don't fail the save, just skip this part
+                }, 5000);
+                
+                const handleResponse = async (event) => {
+                    if (event.data?.type === 'editorState') {
+                        clearTimeout(timeout);
+                        window.removeEventListener('message', handleResponse);
+                        
+                        const editorProject = event.data.project;
+                        console.log('Received editor state:', editorProject);
+                        
+                        if (editorProject) {
+                            try {
+                                // Save to server as videoedit.vproj
+                                const response = await fetch('/api/save-editor-project', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        projectPath: projectPath,
+                                        editorProject: editorProject,
+                                        filename: 'videoedit.vproj'
+                                    })
+                                });
+                                
+                                if (response.ok) {
+                                    console.log('Editor state saved as videoedit.vproj');
+                                    showToast('Editor state saved as videoedit.vproj', 'success');
+                                } else {
+                                    console.warn('Failed to save videoedit.vproj');
+                                }
+                                
+                                // Also save to local folder if available
+                                if (localDirectoryHandle) {
+                                    try {
+                                        const fileHandle = await localDirectoryHandle.getFileHandle('videoedit.vproj', { create: true });
+                                        const writable = await fileHandle.createWritable();
+                                        await writable.write(JSON.stringify(editorProject, null, 2));
+                                        await writable.close();
+                                        console.log('Editor state saved locally as videoedit.vproj');
+                                    } catch (localErr) {
+                                        console.warn('Failed to save videoedit.vproj locally:', localErr);
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Error saving editor state:', err);
+                            }
+                        }
+                        
+                        resolve();
+                    }
+                };
+                
+                window.addEventListener('message', handleResponse);
+                
+                // Request editor state
+                console.log('Requesting editor state...');
+                editorFrame.contentWindow.postMessage({ type: 'getEditorState' }, '*');
+            });
+        }
         
         // Helper function to save to local folder using File System Access API
         async function saveToLocalFolder(projectData) {
@@ -3700,7 +3775,75 @@ Story context: ${storyContext}`;
                     });
                 }
                 
-                showToast(`Project loaded from ${PROJECT_PATH}`, 'success');
+                // Check for videoedit.vproj and load it into the editor
+                let editorProject = null;
+                try {
+                    const vprojHandle = await localDirectoryHandle.getFileHandle('videoedit.vproj');
+                    const vprojFile = await vprojHandle.getFile();
+                    const vprojText = await vprojFile.text();
+                    editorProject = JSON.parse(vprojText);
+                    console.log('Found videoedit.vproj:', editorProject);
+                } catch (e) {
+                    console.log('No videoedit.vproj found, will use default editor state');
+                }
+                
+                // If we have an editor project, load it into the editor
+                if (editorProject) {
+                    // Need to reload video URLs in the editor project assets
+                    if (editorProject.assets && videosDir) {
+                        for (let asset of editorProject.assets) {
+                            if (asset.type === 'video' && asset.name) {
+                                // Find matching scene by name pattern "Scene X"
+                                const sceneMatch = asset.name.match(/Scene (\d+)/);
+                                if (sceneMatch) {
+                                    const sceneIndex = parseInt(sceneMatch[1]) - 1;
+                                    const scene = project.scenes[sceneIndex];
+                                    if (scene && scene.videoUrl) {
+                                        asset.src = scene.videoUrl;
+                                        console.log(`Updated asset ${asset.name} src to blob URL`);
+                                    }
+                                }
+                            } else if (asset.type === 'audio' && asset.name) {
+                                // Audio assets share the video URL
+                                const sceneMatch = asset.name.match(/Scene (\d+)/);
+                                if (sceneMatch) {
+                                    const sceneIndex = parseInt(sceneMatch[1]) - 1;
+                                    const scene = project.scenes[sceneIndex];
+                                    if (scene && scene.videoUrl) {
+                                        asset.src = scene.videoUrl;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Switch to editing tab and send editor project
+                    switchMainTab('editing');
+                    
+                    const editorFrame = document.getElementById('editorFrame');
+                    const sendEditorProject = () => {
+                        if (editorFrame && editorFrame.contentWindow) {
+                            editorFrame.contentWindow.postMessage({
+                                type: 'loadEditorProject',
+                                project: editorProject
+                            }, '*');
+                            console.log('Sent editor project to iframe');
+                        }
+                    };
+                    
+                    // Wait for iframe to be ready
+                    if (editorFrame.contentDocument?.readyState === 'complete') {
+                        setTimeout(sendEditorProject, 500);
+                    } else {
+                        editorFrame.addEventListener('load', () => {
+                            setTimeout(sendEditorProject, 500);
+                        }, { once: true });
+                    }
+                    
+                    showToast(`Project loaded with editor state from videoedit.vproj`, 'success');
+                } else {
+                    showToast(`Project loaded from ${PROJECT_PATH}`, 'success');
+                }
             } catch (err) {
                 if (err.name !== 'AbortError') {
                     showToast('Error loading project: ' + err.message, 'error');

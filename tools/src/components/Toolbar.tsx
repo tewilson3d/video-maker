@@ -1785,8 +1785,6 @@ const Toolbar: React.FC = () => {
   return (
     <div className="toolbar">
       <button onClick={handleImportClick}>Import</button>
-      <button onClick={handleSave}>Save</button>
-      <button onClick={handleLoad}>Load</button>
       
       <button 
         onClick={undo}

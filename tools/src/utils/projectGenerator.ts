@@ -79,14 +79,17 @@ export function generateProjectFromStoryboard(storyboard: StoryboardData): Proje
       const startFrame = currentFrame;
       currentFrame += clipDuration;
 
+      // Get edit duration in seconds for inPoint/outPoint (video trimming uses seconds)
+      const editDurationSeconds = scene.editDuration || (scene.duration ? scene.duration : settings.defaultSceneDuration / settings.fps);
+      
       return {
         id: `clip_scene_${index + 1}`,
         assetId: `asset_scene_${index + 1}`,
         start: startFrame,
         duration: clipDuration,
-        // For videos that are longer than edit duration, set outPoint to trim
+        // inPoint/outPoint are in SECONDS for video trimming
         inPoint: 0,
-        outPoint: clipDuration,
+        outPoint: editDurationSeconds,
         keyframes: {
           position: [{ time: 0, value: { x: 0, y: 0 }, easing: 'linear' as const }],
           scale: [{ time: 0, value: { x: 1, y: 1 }, easing: 'linear' as const }],

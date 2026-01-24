@@ -189,6 +189,9 @@ const Timeline: React.FC = () => {
   // Zoom state - pixels per second
   const [pixelsPerSecond, setPixelsPerSecond] = useState(50);
   
+  // Track height state - adjustable like Premiere Pro
+  const [trackHeight, setTrackHeight] = useState(60);
+  
   // Auto-scroll to keep playhead in view
   const scrollToPlayhead = () => {
     if (!timelineRef.current) return;
@@ -217,8 +220,10 @@ const Timeline: React.FC = () => {
     }
   };
   
-  // Zoom levels available
-  const zoomLevels = [10, 25, 50, 100, 200, 500];
+  // Zoom levels available (pixels per second)
+  // Lower = more zoomed out, can see more timeline
+  // At 0.5px/sec: 1 minute = 30px, 10 minutes = 300px, 1 hour = 1800px
+  const zoomLevels = [0.5, 1, 2, 5, 10, 25, 50, 100, 200, 500];
   const currentZoomIndex = zoomLevels.indexOf(pixelsPerSecond);
   
   const zoomIn = () => {
@@ -623,7 +628,7 @@ const Timeline: React.FC = () => {
     const scrollLeft = timelineRef.current.scrollLeft;
     const trackLabelWidth = 100;
     const rulerHeight = 40;
-    const trackHeight = 40;
+    // trackHeight from state
 
     // Calculate selection rectangle bounds in timeline coordinates
     const selectionLeft = Math.min(selectionDrag.startX, selectionDrag.currentX) - trackLabelWidth + scrollLeft;
@@ -859,7 +864,7 @@ const Timeline: React.FC = () => {
         if (timelineRef.current) {
           const timelineRect = timelineRef.current.getBoundingClientRect();
           const relativeY = e.clientY - timelineRect.top;
-          const trackHeight = 40; // Height of each track
+          // trackHeight from state // Height of each track
           const rulerHeight = 40; // Height of time ruler
           const trackIndex = Math.floor((relativeY - rulerHeight) / trackHeight);
           
@@ -1287,7 +1292,7 @@ const Timeline: React.FC = () => {
         const clickX = selectionDrag.startX - trackLabelWidth;
         const clickY = selectionDrag.startY - rulerHeight;
         const clickTime = Math.max(0, clickX / pixelsPerSecond);
-        const trackIndex = Math.floor(clickY / (40)); // track height
+        const trackIndex = Math.floor(clickY / trackHeight); // track height
         
         if (clickY >= 0 && trackIndex >= 0 && trackIndex < project.timeline.tracks.length) {
           seek(clickTime);
@@ -1575,7 +1580,7 @@ const Timeline: React.FC = () => {
     // Check if clicking in empty space
     const trackLabelWidth = 100;
     const rulerHeight = 40;
-    const trackHeight = 40;
+    // trackHeight from state
     const clickX = x - trackLabelWidth + scrollLeft;
     const clickY = y - rulerHeight;
     const clickTime = Math.max(0, clickX / pixelsPerSecond);
@@ -1764,10 +1769,26 @@ const Timeline: React.FC = () => {
       // Zoomed out: show every 2s major, 1s minor
       majorInterval = 2;
       minorInterval = 1;
-    } else {
+    } else if (pixelsPerSecond >= 10) {
       // Very zoomed out: show every 5s major, 1s minor
       majorInterval = 5;
       minorInterval = 1;
+    } else if (pixelsPerSecond >= 5) {
+      // Extra zoomed out: show every 10s major, 5s minor
+      majorInterval = 10;
+      minorInterval = 5;
+    } else if (pixelsPerSecond >= 2) {
+      // Very zoomed out: show every 30s major, 10s minor
+      majorInterval = 30;
+      minorInterval = 10;
+    } else if (pixelsPerSecond >= 1) {
+      // Extreme zoom out: show every 1min major, 30s minor
+      majorInterval = 60;
+      minorInterval = 30;
+    } else {
+      // Maximum zoom out: show every 5min major, 1min minor
+      majorInterval = 300;
+      minorInterval = 60;
     }
     
     // Generate major ticks
@@ -3083,6 +3104,46 @@ const Timeline: React.FC = () => {
             </button>
           </div>
           
+          {/* Track Height Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', marginRight: '15px', gap: '5px' }}>
+            <span style={{ fontSize: '11px', color: '#aaa' }}>Track:</span>
+            <button 
+              onClick={() => setTrackHeight(Math.max(30, trackHeight - 15))}
+              disabled={trackHeight <= 30}
+              style={{ 
+                fontSize: '12px', 
+                padding: '4px 8px',
+                backgroundColor: trackHeight > 30 ? '#4a90e2' : '#666',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: trackHeight > 30 ? 'pointer' : 'not-allowed'
+              }}
+              title="Decrease track height"
+            >
+              ↕−
+            </button>
+            <span style={{ fontSize: '11px', color: '#aaa', minWidth: '35px', textAlign: 'center' }}>
+              {trackHeight}px
+            </span>
+            <button 
+              onClick={() => setTrackHeight(Math.min(150, trackHeight + 15))}
+              disabled={trackHeight >= 150}
+              style={{ 
+                fontSize: '12px', 
+                padding: '4px 8px',
+                backgroundColor: trackHeight < 150 ? '#4a90e2' : '#666',
+                color: 'white',
+                border: 'none',
+                borderRadius: '3px',
+                cursor: trackHeight < 150 ? 'pointer' : 'not-allowed'
+              }}
+              title="Increase track height"
+            >
+              ↕+
+            </button>
+          </div>
+          
           <button onClick={playback.isPlaying ? pause : play}>
             {playback.isPlaying ? '⏸️' : '▶️'}
           </button>
@@ -3150,6 +3211,7 @@ const Timeline: React.FC = () => {
               key={track.id} 
               className="track"
               style={{
+                height: `${trackHeight}px`,
                 borderBottom: isLastVideoBeforeAudio ? '3px solid #666' : '1px solid #333',
                 display: 'block',
                 position: 'relative',
@@ -3277,7 +3339,7 @@ const Timeline: React.FC = () => {
           style={{
             left: 100 + project.timeline.currentTime * pixelsPerSecond,
             top: '40px', // Start after the time ruler
-            height: `${project.timeline.tracks.length * 40}px`, // Height of all tracks
+            height: `${project.timeline.tracks.length * trackHeight}px`, // Height of all tracks
             cursor: playheadDrag.isDragging ? 'grabbing' : 'grab'
           }}
           onMouseDown={handlePlayheadMouseDown}

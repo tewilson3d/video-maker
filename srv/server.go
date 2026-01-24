@@ -785,6 +785,7 @@ func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request)
 	var req struct {
 		ProjectPath   string         `json:"projectPath"`
 		EditorProject map[string]any `json:"editorProject"`
+		Filename      string         `json:"filename"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
@@ -802,8 +803,12 @@ func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Save edit.vproj (editor project state - JSON format with .vproj extension)
-	jsonPath := filepath.Join(req.ProjectPath, "edit.vproj")
+	// Use provided filename or default to videoedit.vproj
+	filename := req.Filename
+	if filename == "" {
+		filename = "videoedit.vproj"
+	}
+	jsonPath := filepath.Join(req.ProjectPath, filename)
 	jsonData, err := json.MarshalIndent(req.EditorProject, "", "  ")
 	if err != nil {
 		http.Error(w, "Failed to create JSON: "+err.Error(), http.StatusInternalServerError)
@@ -815,7 +820,7 @@ func (s *Server) HandleSaveEditorProject(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	slog.Info("saved edit.vproj", "path", jsonPath)
+	slog.Info("saved editor project", "path", jsonPath)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
@@ -950,6 +955,16 @@ func (s *Server) HandleLoadProject(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		project["scenes"] = scenes
+	}
+	
+	// Check for videoedit.vproj and include it if it exists
+	vprojPath := filepath.Join(projectPath, "videoedit.vproj")
+	if vprojData, err := os.ReadFile(vprojPath); err == nil {
+		var editorProject map[string]any
+		if err := json.Unmarshal(vprojData, &editorProject); err == nil {
+			project["editorProject"] = editorProject
+			slog.Info("loaded videoedit.vproj", "path", vprojPath)
+		}
 	}
 	
 	w.Header().Set("Content-Type", "application/json")

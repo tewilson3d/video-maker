@@ -7,7 +7,7 @@ import Prompting from './components/Prompting';
 import Storyboard from './components/Storyboard';
 import ProjectControls from './components/ProjectControls';
 import { useEditorStore } from './store';
-import { Project } from './types';
+import { Project, Asset, Clip } from './types';
 import { 
   generateProjectFromStoryboard, 
   exportStoryboardJSON, 
@@ -569,62 +569,317 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
         setProject(event.data.project);
       } else if (event.data?.type === 'loadStoryboard' && event.data?.storyboard) {
         console.log('Loading storyboard from parent:', event.data.storyboard);
-        // Convert storyboard to project and load with video elements
         const storyboard = event.data.storyboard;
-        const generatedProject = generateProjectFromStoryboard(storyboard);
-        console.log('Generated project:', generatedProject);
         
-        // Load video/image elements for each asset (async)
+        // Import videos like the Import button does - with true duration and audio extraction
         (async () => {
+          const { addAsset, addTrack, addClipToTrack, setProject } = useEditorStore.getState();
+          const { generateWaveform } = await import('./utils/waveform');
+          const { generateThumbnail } = await import('./utils/thumbnails');
+          
+          // Get scenes with video URLs
+          const scenesWithVideo = storyboard.scenes.filter((s: any) => s.videoUrl);
+          
+          if (scenesWithVideo.length === 0) {
+            console.warn('No video clips to import');
+            return;
+          }
+          
+          // Create a fresh project
+          const fps = storyboard.settings?.fps || 30;
+          const newProject: Project = {
+            id: crypto.randomUUID(),
+            name: storyboard.storyPrompt?.substring(0, 50) || 'Imported Project',
+            assets: [],
+            timeline: {
+              tracks: [
+                { id: 'track_video_1', type: 'video', name: 'Video 1', clips: [], visible: true, locked: false },
+                { id: 'track_audio_1', type: 'audio', name: 'Audio 1', clips: [], visible: true, locked: false }
+              ],
+              currentTime: 0,
+              duration: 30, // Will be updated
+              fps: fps,
+              zoom: 1
+            },
+            canvasWidth: storyboard.settings?.canvasWidth || 1920,
+            canvasHeight: storyboard.settings?.canvasHeight || 1080,
+            backgroundColor: '#000000'
+          };
+          
+          let currentTime = 0; // Track position in seconds
+          
+          for (let i = 0; i < scenesWithVideo.length; i++) {
+            const scene = scenesWithVideo[i];
+            const videoUrl = scene.videoUrl;
+            
+            console.log(`Importing video ${i + 1}: ${videoUrl}`);
+            
+            // Load video and get metadata
+            const videoData = await new Promise<{video: HTMLVideoElement, duration: number, width: number, height: number}>((resolve, reject) => {
+              const video = document.createElement('video');
+              video.crossOrigin = 'anonymous';
+              video.preload = 'auto';
+              video.muted = true;
+              
+              video.onloadedmetadata = () => {
+                resolve({
+                  video,
+                  duration: video.duration,
+                  width: video.videoWidth,
+                  height: video.videoHeight
+                });
+              };
+              
+              video.onerror = () => reject(new Error(`Failed to load video ${i + 1}`));
+              video.src = videoUrl;
+            });
+            
+            console.log(`Video ${i + 1} loaded: ${videoData.duration}s, ${videoData.width}x${videoData.height}`);
+            
+            // Create video asset
+            const videoAssetId = crypto.randomUUID();
+            const videoAsset: Asset = {
+              id: videoAssetId,
+              type: 'video',
+              src: videoUrl,
+              name: `Scene ${i + 1}`,
+              duration: videoData.duration,
+              width: videoData.width,
+              height: videoData.height,
+              element: videoData.video
+            };
+            
+            // Generate thumbnail
+            try {
+              videoAsset.thumbnail = await generateThumbnail(videoData.video, 'video');
+            } catch (e) {
+              console.warn('Failed to generate thumbnail:', e);
+            }
+            
+            newProject.assets.push(videoAsset);
+            
+            // Create video clip with true duration
+            const videoClip: Clip = {
+              id: crypto.randomUUID(),
+              assetId: videoAssetId,
+              start: currentTime * fps, // Convert to frames
+              duration: videoData.duration * fps, // True duration in frames
+              inPoint: 0,
+              outPoint: videoData.duration, // True duration in seconds
+              keyframes: {
+                position: [{ time: 0, value: { x: 0, y: 0 }, easing: 'linear' as const }],
+                scale: [{ time: 0, value: { x: 1, y: 1 }, easing: 'linear' as const }],
+                rotation: [{ time: 0, value: 0, easing: 'linear' as const }],
+                opacity: [{ time: 0, value: 1, easing: 'linear' as const }]
+              }
+            };
+            
+            newProject.timeline.tracks[0].clips.push(videoClip);
+            
+            // Try to extract audio
+            try {
+              const waveform = await generateWaveform(videoUrl);
+              if (waveform && waveform.length > 0) {
+                const audioAssetId = crypto.randomUUID();
+                const audio = document.createElement('audio');
+                audio.src = videoUrl;
+                audio.preload = 'metadata';
+                
+                const audioAsset: Asset = {
+                  id: audioAssetId,
+                  type: 'audio',
+                  src: videoUrl,
+                  name: `Scene ${i + 1} (Audio)`,
+                  duration: videoData.duration,
+                  width: 0,
+                  height: 0,
+                  element: audio,
+                  waveform: waveform
+                };
+                
+                newProject.assets.push(audioAsset);
+                
+                // Create audio clip
+                const audioClip: Clip = {
+                  id: crypto.randomUUID(),
+                  assetId: audioAssetId,
+                  start: currentTime * fps,
+                  duration: videoData.duration * fps,
+                  inPoint: 0,
+                  outPoint: videoData.duration
+                };
+                
+                newProject.timeline.tracks[1].clips.push(audioClip);
+                console.log(`Audio extracted for Scene ${i + 1}`);
+              }
+            } catch (e) {
+              console.warn(`No audio or failed to extract for Scene ${i + 1}:`, e);
+            }
+            
+            currentTime += videoData.duration;
+          }
+          
+          // Update timeline duration
+          newProject.timeline.duration = currentTime * fps;
+          
+          // Set canvas size from first video
+          if (newProject.assets.length > 0) {
+            const firstVideo = newProject.assets.find(a => a.type === 'video');
+            if (firstVideo && firstVideo.width && firstVideo.height) {
+              newProject.canvasWidth = firstVideo.width;
+              newProject.canvasHeight = firstVideo.height;
+            }
+          }
+          
+          console.log('Imported project:', newProject);
+          console.log(`Total duration: ${currentTime}s, ${newProject.assets.length} assets`);
+          
+          setProject(newProject);
+        })();
+      } else if (event.data?.type === 'getEditorState') {
+        // Parent is requesting editor state for saving
+        console.log('Parent requested editor state for saving');
+        const { project } = useEditorStore.getState();
+        
+        // Create a saveable version without HTML elements
+        const saveableProject = {
+          ...project,
+          assets: project.assets.map(asset => ({
+            id: asset.id,
+            type: asset.type,
+            src: asset.src,
+            name: asset.name,
+            duration: asset.duration,
+            width: asset.width,
+            height: asset.height,
+            thumbnail: asset.thumbnail,
+            waveform: asset.waveform,
+            // Don't save element - it's a DOM object
+          })),
+          savedAt: new Date().toISOString()
+        };
+        
+        // Send back to parent
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: 'editorState',
+            project: saveableProject
+          }, '*');
+          console.log('Sent editor state to parent:', saveableProject);
+        }
+      } else if (event.data?.type === 'loadEditorProject' && event.data?.project) {
+        // Load a saved editor project (from videoedit.vproj)
+        console.log('Loading editor project from parent:', event.data.project);
+        const editorProject = event.data.project;
+        
+        // Recreate video/audio elements for each asset
+        (async () => {
+          const { generateWaveform } = await import('./utils/waveform');
+          const { generateThumbnail } = await import('./utils/thumbnails');
+          
           const assetsWithElements = await Promise.all(
-            generatedProject.assets.map(async (asset) => {
+            editorProject.assets.map(async (asset: Asset) => {
               if (!asset.src) {
                 console.warn(`Asset ${asset.name} has no src`);
                 return asset;
               }
               
               if (asset.type === 'video') {
-                return new Promise<typeof asset>((resolve) => {
+                return new Promise<Asset>((resolve) => {
                   const video = document.createElement('video');
                   video.crossOrigin = 'anonymous';
                   video.preload = 'auto';
                   video.muted = true;
                   
-                  video.onloadedmetadata = () => {
-                    console.log(`Video element loaded: ${asset.name}, ${video.duration}s, ${video.videoWidth}x${video.videoHeight}`);
-                    resolve({
+                  video.onloadedmetadata = async () => {
+                    console.log(`Video loaded: ${asset.name}, ${video.duration}s`);
+                    const loadedAsset: Asset = {
                       ...asset,
                       element: video,
-                      duration: video.duration * 30,
-                      width: video.videoWidth,
-                      height: video.videoHeight,
-                    });
+                      duration: asset.duration || video.duration,
+                      width: asset.width || video.videoWidth,
+                      height: asset.height || video.videoHeight,
+                    };
+                    
+                    // Generate thumbnail if missing
+                    if (!loadedAsset.thumbnail) {
+                      try {
+                        loadedAsset.thumbnail = await generateThumbnail(video, 'video');
+                      } catch (e) {
+                        console.warn('Failed to generate thumbnail');
+                      }
+                    }
+                    
+                    resolve(loadedAsset);
                   };
                   
-                  video.onerror = (e) => {
-                    console.error(`Failed to load video element ${asset.name}:`, e);
+                  video.onerror = () => {
+                    console.error(`Failed to load video: ${asset.name}`);
                     resolve(asset);
                   };
                   
                   video.src = asset.src;
                 });
+              } else if (asset.type === 'audio') {
+                return new Promise<Asset>((resolve) => {
+                  const audio = document.createElement('audio');
+                  audio.crossOrigin = 'anonymous';
+                  audio.preload = 'metadata';
+                  
+                  audio.onloadedmetadata = async () => {
+                    console.log(`Audio loaded: ${asset.name}, ${audio.duration}s`);
+                    const loadedAsset: Asset = {
+                      ...asset,
+                      element: audio,
+                      duration: asset.duration || audio.duration,
+                    };
+                    
+                    // Generate waveform if missing
+                    if (!loadedAsset.waveform) {
+                      try {
+                        loadedAsset.waveform = await generateWaveform(asset.src);
+                      } catch (e) {
+                        console.warn('Failed to generate waveform');
+                      }
+                    }
+                    
+                    resolve(loadedAsset);
+                  };
+                  
+                  audio.onerror = () => {
+                    console.error(`Failed to load audio: ${asset.name}`);
+                    resolve(asset);
+                  };
+                  
+                  audio.src = asset.src;
+                });
               } else if (asset.type === 'image') {
-                return new Promise<typeof asset>((resolve) => {
+                return new Promise<Asset>((resolve) => {
                   const img = new Image();
                   img.crossOrigin = 'anonymous';
                   
-                  img.onload = () => {
-                    console.log(`Image element loaded: ${asset.name}, ${img.naturalWidth}x${img.naturalHeight}`);
-                    resolve({
+                  img.onload = async () => {
+                    console.log(`Image loaded: ${asset.name}`);
+                    const loadedAsset: Asset = {
                       ...asset,
                       element: img,
-                      width: img.naturalWidth,
-                      height: img.naturalHeight,
-                    });
+                      width: asset.width || img.naturalWidth,
+                      height: asset.height || img.naturalHeight,
+                    };
+                    
+                    if (!loadedAsset.thumbnail) {
+                      try {
+                        loadedAsset.thumbnail = await generateThumbnail(img, 'image');
+                      } catch (e) {
+                        console.warn('Failed to generate thumbnail');
+                      }
+                    }
+                    
+                    resolve(loadedAsset);
                   };
                   
-                  img.onerror = (e) => {
-                    console.error(`Failed to load image element ${asset.name}:`, e);
+                  img.onerror = () => {
+                    console.error(`Failed to load image: ${asset.name}`);
                     resolve(asset);
                   };
                   
@@ -636,9 +891,9 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
             })
           );
           
-          generatedProject.assets = assetsWithElements;
-          console.log('Assets with elements:', assetsWithElements.map(a => ({ name: a.name, hasElement: !!a.element })));
-          setProject(generatedProject);
+          editorProject.assets = assetsWithElements;
+          console.log('Editor project loaded with elements:', editorProject);
+          setProject(editorProject);
         })();
       }
     };
