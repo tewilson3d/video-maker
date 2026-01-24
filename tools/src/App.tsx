@@ -569,10 +569,77 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
         setProject(event.data.project);
       } else if (event.data?.type === 'loadStoryboard' && event.data?.storyboard) {
         console.log('Loading storyboard from parent:', event.data.storyboard);
-        // Convert storyboard to project and load
-        const generatedProject = generateProjectFromStoryboard(event.data.storyboard);
+        // Convert storyboard to project and load with video elements
+        const storyboard = event.data.storyboard;
+        const generatedProject = generateProjectFromStoryboard(storyboard);
         console.log('Generated project:', generatedProject);
-        setProject(generatedProject);
+        
+        // Load video/image elements for each asset (async)
+        (async () => {
+          const assetsWithElements = await Promise.all(
+            generatedProject.assets.map(async (asset) => {
+              if (!asset.src) {
+                console.warn(`Asset ${asset.name} has no src`);
+                return asset;
+              }
+              
+              if (asset.type === 'video') {
+                return new Promise<typeof asset>((resolve) => {
+                  const video = document.createElement('video');
+                  video.crossOrigin = 'anonymous';
+                  video.preload = 'auto';
+                  video.muted = true;
+                  
+                  video.onloadedmetadata = () => {
+                    console.log(`Video element loaded: ${asset.name}, ${video.duration}s, ${video.videoWidth}x${video.videoHeight}`);
+                    resolve({
+                      ...asset,
+                      element: video,
+                      duration: video.duration * 30,
+                      width: video.videoWidth,
+                      height: video.videoHeight,
+                    });
+                  };
+                  
+                  video.onerror = (e) => {
+                    console.error(`Failed to load video element ${asset.name}:`, e);
+                    resolve(asset);
+                  };
+                  
+                  video.src = asset.src;
+                });
+              } else if (asset.type === 'image') {
+                return new Promise<typeof asset>((resolve) => {
+                  const img = new Image();
+                  img.crossOrigin = 'anonymous';
+                  
+                  img.onload = () => {
+                    console.log(`Image element loaded: ${asset.name}, ${img.naturalWidth}x${img.naturalHeight}`);
+                    resolve({
+                      ...asset,
+                      element: img,
+                      width: img.naturalWidth,
+                      height: img.naturalHeight,
+                    });
+                  };
+                  
+                  img.onerror = (e) => {
+                    console.error(`Failed to load image element ${asset.name}:`, e);
+                    resolve(asset);
+                  };
+                  
+                  img.src = asset.src;
+                });
+              }
+              
+              return asset;
+            })
+          );
+          
+          generatedProject.assets = assetsWithElements;
+          console.log('Assets with elements:', assetsWithElements.map(a => ({ name: a.name, hasElement: !!a.element })));
+          setProject(generatedProject);
+        })();
       }
     };
 

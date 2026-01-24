@@ -20,9 +20,6 @@
                         <button type="button" class="btn-project" id="loadProjectBtn" title="Load project from folder">
                             <span>📂</span> Load
                         </button>
-                        <button type="button" class="btn-project" id="loadJsonBtn" title="Load from JSON file">
-                            <span>📄</span> JSON
-                        </button>
                         <button type="button" class="btn-project" id="saveProjectBtn">
                             <span>💾</span> Save
                         </button>
@@ -402,7 +399,7 @@
         
         <!-- Hidden file inputs -->
         <input type="file" id="folderBrowseInput" webkitdirectory directory style="display: none;">
-        <input type="file" id="loadJsonInput" accept=".json,application/json" style="display: none;">
+
 
         <!-- Project Settings Modal -->
         <div id="settingsModal" class="modal-overlay" style="display: none;">
@@ -1138,6 +1135,12 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 return; // Don't save if no project path set
             }
             
+            // Skip server save for local projects
+            if (localDirectoryHandle) {
+                console.log('Local project - skipping server auto-save');
+                return;
+            }
+            
             try {
                 // Process scenes to convert blob URLs to base64 before saving
                 const processedScenes = await prepareScenesForSave(currentStoryboard.scenes || []);
@@ -1786,31 +1789,39 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                     editDuration: scene.editDuration || 3
                 };
 
-                // If videoUrl is a blob URL, upload it to server
+                // If videoUrl is a blob URL:
+                // - For local projects, KEEP the blob URL (don't upload)
+                // - For server projects, upload to get persistent URL
                 if (processedScene.videoUrl && processedScene.videoUrl.startsWith('blob:')) {
-                    try {
-                        console.log(`Uploading blob video for scene ${i}...`);
-                        const response = await fetch(processedScene.videoUrl);
-                        const blob = await response.blob();
-                        
-                        const formData = new FormData();
-                        formData.append('video', blob, `scene_${i}.mp4`);
-                        formData.append('sceneIndex', i.toString());
-                        
-                        const uploadResponse = await fetch('/api/upload-video', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        if (uploadResponse.ok) {
-                            const result = await uploadResponse.json();
-                            processedScene.videoUrl = result.videoUrl;
-                            console.log(`Uploaded scene ${i} video: ${result.videoUrl}`);
-                        } else {
-                            console.warn(`Failed to upload video for scene ${i}`);
+                    if (localDirectoryHandle) {
+                        // Local project - keep blob URL, editor will use it directly
+                        console.log(`Keeping blob URL for local scene ${i}`);
+                    } else {
+                        // Server project - upload to get persistent URL
+                        try {
+                            console.log(`Uploading blob video for scene ${i}...`);
+                            const response = await fetch(processedScene.videoUrl);
+                            const blob = await response.blob();
+                            
+                            const formData = new FormData();
+                            formData.append('video', blob, `scene_${i}.mp4`);
+                            formData.append('sceneIndex', i.toString());
+                            
+                            const uploadResponse = await fetch('/api/upload-video', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            if (uploadResponse.ok) {
+                                const result = await uploadResponse.json();
+                                processedScene.videoUrl = result.videoUrl;
+                                console.log(`Uploaded scene ${i} video: ${result.videoUrl}`);
+                            } else {
+                                console.warn(`Failed to upload video for scene ${i}`);
+                            }
+                        } catch (err) {
+                            console.warn(`Error uploading video for scene ${i}:`, err);
                         }
-                    } catch (err) {
-                        console.warn(`Error uploading video for scene ${i}:`, err);
                     }
                 }
 
@@ -1947,23 +1958,28 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 backgroundColor: '#000000'
             };
 
-            try {
-                const response = await fetch('/api/save-editor-project', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        projectPath: projectPath,
-                        editorProject: editorProject
-                    })
-                });
-                
-                if (response.ok) {
-                    console.log('Editor project saved to:', projectPath + '/editor-project.json');
-                } else {
-                    console.error('Failed to save editor project');
+            // Skip server save for local projects
+            if (localDirectoryHandle) {
+                console.log('Local project - skipping editor project server save');
+            } else {
+                try {
+                    const response = await fetch('/api/save-editor-project', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectPath: projectPath,
+                            editorProject: editorProject
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        console.log('Editor project saved to:', projectPath + '/editor-project.json');
+                    } else {
+                        console.error('Failed to save editor project');
+                    }
+                } catch (err) {
+                    console.error('Error saving editor project:', err);
                 }
-            } catch (err) {
-                console.error('Error saving editor project:', err);
             }
         }
 
@@ -3279,7 +3295,9 @@ Story context: ${storyContext}`;
                         narration: narration || existingScene.narration || '',
                         imagePrompt: existingScene.imagePrompt || '',
                         imageUrl: img?.src || existingScene.imageUrl || null,
+                        imageFile: existingScene.imageFile || null,  // Preserve image filename
                         videoUrl: existingScene.videoUrl || null,
+                        videoFile: existingScene.videoFile || null,  // Preserve video filename!
                         lastFrameUrl: existingScene.lastFrameUrl || null,
                         duration: existingScene.duration || 5,
                         status: existingScene.status || 'complete'
@@ -3704,59 +3722,6 @@ Story context: ${storyContext}`;
                 reader.readAsDataURL(file);
             });
         }
-
-        // Load JSON file directly (for existing projects)
-        document.getElementById('loadJsonBtn').addEventListener('click', () => {
-            document.getElementById('loadJsonInput').click();
-        });
-
-        document.getElementById('loadJsonInput').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const btn = document.getElementById('loadJsonBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>📄</span> Loading...';
-            btn.disabled = true;
-
-            try {
-                const text = await file.text();
-                const project = JSON.parse(text);
-                
-                // Load project data into UI
-                loadProjectData(project);
-                
-                // If there are scenes with images, load storyboard
-                if (project.scenes && project.scenes.length > 0) {
-                    updateStoryboardTab({
-                        storyPrompt: project.storyPrompt,
-                        characters: project.characters || [],
-                        artImages: project.artImages || project.characterArt || [],
-                        scenes: project.scenes
-                    });
-                }
-                
-                // Update project path if specified in the JSON
-                if (project.projectPath) {
-                    PROJECT_PATH = project.projectPath;
-                    PROJECT_SETTINGS.projectPath = PROJECT_PATH;
-                    document.getElementById('projectPathInput').value = PROJECT_PATH;
-                }
-                
-                // Note: We intentionally do NOT load settings from old projects
-                // The current UI settings (aspect ratio, resolution, etc.) are preserved
-                // Old projects may have outdated or incompatible settings
-                
-                showToast(`Project loaded from ${file.name}`, 'success');
-            } catch (err) {
-                console.error('Error loading JSON:', err);
-                showToast('Error loading project: ' + err.message, 'error');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                e.target.value = ''; // Reset for next use
-            }
-        });
 
         function gatherProjectData() {
             // Gather story prompt
