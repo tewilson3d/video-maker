@@ -1740,7 +1740,49 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
         }
 
         function exportStoryboard() {
-            alert('Export storyboard - coming soon!');
+            if (!currentStoryboard || !currentStoryboard.scenes || currentStoryboard.scenes.length === 0) {
+                showToast('No storyboard to export', 'error');
+                return;
+            }
+
+            // Build storyboard data for the editor
+            const storyboardData = {
+                storyPrompt: currentStoryboard.storyPrompt || '',
+                characters: currentStoryboard.characters || [],
+                scenes: currentStoryboard.scenes.map((scene, index) => ({
+                    id: scene.id || `scene_${index + 1}`,
+                    narration: scene.narration || scene.description || '',
+                    imagePrompt: scene.imagePrompt || scene.description || '',
+                    imageUrl: scene.imageUrl || null,
+                    videoUrl: scene.videoUrl || null,
+                    generationDuration: scene.generationDuration || scene.duration || 5,
+                    editDuration: scene.editDuration || 3  // Default 3 seconds in edit
+                })),
+                settings: {
+                    fps: 30,
+                    canvasWidth: 1920,
+                    canvasHeight: 1080,
+                    defaultSceneDuration: 90  // 3 seconds at 30fps
+                }
+            };
+
+            console.log('Exporting storyboard to editor:', storyboardData);
+
+            // Get the editor iframe
+            const editorFrame = document.getElementById('editorFrame');
+            if (editorFrame && editorFrame.contentWindow) {
+                // Send storyboard to editor via postMessage
+                editorFrame.contentWindow.postMessage({
+                    type: 'loadStoryboard',
+                    storyboard: storyboardData
+                }, '*');
+
+                // Switch to editing tab
+                switchMainTab('editing');
+                showToast('Storyboard sent to editor!', 'success');
+            } else {
+                showToast('Editor not ready', 'error');
+            }
         }
 
         async function generateAllVideosWithVeo() {

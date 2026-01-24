@@ -424,6 +424,29 @@ Style: Cinematic, high-quality, suitable for video/animation storyboard. Aspect 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
 
+  // Listen for messages from parent window (when embedded in iframe)
+  useEffect(() => {
+    if (!isEmbedded) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      console.log('Editor received message:', event.data?.type);
+      
+      if (event.data?.type === 'loadProject' && event.data?.project) {
+        console.log('Loading project from parent:', event.data.project);
+        setProject(event.data.project);
+      } else if (event.data?.type === 'loadStoryboard' && event.data?.storyboard) {
+        console.log('Loading storyboard from parent:', event.data.storyboard);
+        // Convert storyboard to project and load
+        const generatedProject = generateProjectFromStoryboard(event.data.storyboard);
+        console.log('Generated project:', generatedProject);
+        setProject(generatedProject);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [setProject]);
+
   // Settings modal
   const handleOpenSettings = () => {
     const key = prompt('Enter Gemini API Key:', geminiApiKey);
