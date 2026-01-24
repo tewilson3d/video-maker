@@ -1745,11 +1745,25 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
                 return;
             }
 
+            // Filter scenes - only include those with video clips (or images as fallback)
+            const scenesWithMedia = currentStoryboard.scenes.filter(scene => scene.videoUrl || scene.imageUrl);
+            
+            if (scenesWithMedia.length === 0) {
+                showToast('No video clips or images to export. Generate video clips first.', 'error');
+                return;
+            }
+
+            // Check if we have any video clips
+            const scenesWithVideo = scenesWithMedia.filter(scene => scene.videoUrl);
+            if (scenesWithVideo.length === 0) {
+                showToast('No video clips found. Generate video clips first, or images will be used.', 'warning');
+            }
+
             // Build storyboard data for the editor
             const storyboardData = {
                 storyPrompt: currentStoryboard.storyPrompt || '',
                 characters: currentStoryboard.characters || [],
-                scenes: currentStoryboard.scenes.map((scene, index) => ({
+                scenes: scenesWithMedia.map((scene, index) => ({
                     id: scene.id || `scene_${index + 1}`,
                     narration: scene.narration || scene.description || '',
                     imagePrompt: scene.imagePrompt || scene.description || '',
@@ -1767,21 +1781,35 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             };
 
             console.log('Exporting storyboard to editor:', storyboardData);
+            console.log('Scenes with video:', scenesWithVideo.length, 'Total scenes:', scenesWithMedia.length);
 
-            // Get the editor iframe
+            // Switch to editing tab first so iframe loads
+            switchMainTab('editing');
+
+            // Wait for iframe to be ready, then send data
             const editorFrame = document.getElementById('editorFrame');
-            if (editorFrame && editorFrame.contentWindow) {
-                // Send storyboard to editor via postMessage
-                editorFrame.contentWindow.postMessage({
-                    type: 'loadStoryboard',
-                    storyboard: storyboardData
-                }, '*');
+            
+            const sendToEditor = () => {
+                if (editorFrame && editorFrame.contentWindow) {
+                    console.log('Sending storyboard to editor iframe...');
+                    editorFrame.contentWindow.postMessage({
+                        type: 'loadStoryboard',
+                        storyboard: storyboardData
+                    }, '*');
+                    showToast(`Sent ${scenesWithMedia.length} clips to editor!`, 'success');
+                } else {
+                    showToast('Editor not ready', 'error');
+                }
+            };
 
-                // Switch to editing tab
-                switchMainTab('editing');
-                showToast('Storyboard sent to editor!', 'success');
+            // If iframe is already loaded, send immediately; otherwise wait for load
+            if (editorFrame.contentDocument?.readyState === 'complete') {
+                // Small delay to ensure React app is mounted
+                setTimeout(sendToEditor, 500);
             } else {
-                showToast('Editor not ready', 'error');
+                editorFrame.addEventListener('load', () => {
+                    setTimeout(sendToEditor, 500);
+                }, { once: true });
             }
         }
 
