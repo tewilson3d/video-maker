@@ -6,7 +6,10 @@ export interface StoryboardScene {
   narration: string;
   imagePrompt: string;
   imageUrl?: string;
-  duration?: number; // in frames
+  videoUrl?: string;           // URL to video clip if generated
+  duration?: number;           // Legacy: in frames
+  generationDuration?: number; // How long Veo generates (5 or 8 seconds)
+  editDuration?: number;       // How long clip appears in final edit (seconds)
 }
 
 export interface StoryboardData {
@@ -29,32 +32,54 @@ export function generateProjectFromStoryboard(storyboard: StoryboardData): Proje
     defaultSceneDuration: 120 // 4 seconds at 30fps
   };
 
-  // Create assets from scenes
-  const assets: Asset[] = storyboard.scenes
-    .filter(scene => scene.imageUrl)
-    .map((scene, index) => ({
-      id: `asset_scene_${index + 1}`,
-      type: 'image' as const,
-      src: scene.imageUrl!,
-      name: `Scene ${index + 1}`,
-      width: settings.canvasWidth,
-      height: settings.canvasHeight
-    }));
+  // Helper to convert edit duration (seconds) to frames
+  const secondsToFrames = (seconds: number) => Math.round(seconds * settings.fps);
+  
+  // Helper to get clip duration in frames
+  // Priority: editDuration (seconds) > duration (frames) > default
+  const getClipDuration = (scene: StoryboardScene) => {
+    if (scene.editDuration !== undefined) {
+      return secondsToFrames(scene.editDuration);
+    }
+    return scene.duration || settings.defaultSceneDuration;
+  };
 
-  // Create clips for each scene
-  const clips: Clip[] = storyboard.scenes
-    .filter(scene => scene.imageUrl)
+  // Create assets from scenes - prefer video over image
+  const assets: Asset[] = storyboard.scenes
+    .filter(scene => scene.videoUrl || scene.imageUrl)
     .map((scene, index) => {
-      const duration = scene.duration || settings.defaultSceneDuration;
-      const startFrame = storyboard.scenes
-        .slice(0, index)
-        .reduce((acc, s) => acc + (s.duration || settings.defaultSceneDuration), 0);
+      const hasVideo = !!scene.videoUrl;
+      return {
+        id: `asset_scene_${index + 1}`,
+        type: hasVideo ? 'video' as const : 'image' as const,
+        src: hasVideo ? scene.videoUrl! : scene.imageUrl!,
+        name: `Scene ${index + 1}`,
+        width: settings.canvasWidth,
+        height: settings.canvasHeight,
+        // For videos, store the generation duration for reference
+        duration: hasVideo && scene.generationDuration 
+          ? secondsToFrames(scene.generationDuration) 
+          : undefined
+      };
+    });
+
+  // Create clips for each scene using editDuration
+  let currentFrame = 0;
+  const clips: Clip[] = storyboard.scenes
+    .filter(scene => scene.videoUrl || scene.imageUrl)
+    .map((scene, index) => {
+      const clipDuration = getClipDuration(scene);
+      const startFrame = currentFrame;
+      currentFrame += clipDuration;
 
       return {
         id: `clip_scene_${index + 1}`,
         assetId: `asset_scene_${index + 1}`,
         start: startFrame,
-        duration: duration,
+        duration: clipDuration,
+        // For videos that are longer than edit duration, set outPoint to trim
+        inPoint: 0,
+        outPoint: clipDuration,
         keyframes: {
           position: [{ time: 0, value: { x: 0, y: 0 }, easing: 'linear' as const }],
           scale: [{ time: 0, value: { x: 1, y: 1 }, easing: 'linear' as const }],
