@@ -2934,10 +2934,10 @@ Style: Cinematic, high-quality, consistent with the starting frame. Aspect ratio
             let url, headers;
             
             if (GEMINI_API_KEY) {
-                url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+                url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${GEMINI_API_KEY}`;
                 headers = { 'Content-Type': 'application/json' };
             } else {
-                url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+                url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
                 headers = {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${accessToken}`
@@ -4097,7 +4097,7 @@ Return ONLY valid JSON, no markdown code blocks.`;
 
             const userPrompt = `Create story elements for this idea: ${storyIdea}`;
             
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            const response = await fetch('/api/openai/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

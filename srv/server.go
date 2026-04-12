@@ -1,6 +1,7 @@
 package srv
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -1341,6 +1342,49 @@ type GitHubPushRequest struct {
 	CreateRepo bool   `json:"createRepo"`
 }
 
+// HandleOpenAIProxy proxies requests to OpenAI API to avoid CORS issues
+func (s *Server) HandleOpenAIProxy(w http.ResponseWriter, r *http.Request) {
+	// Read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	// Get the API key from the Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Missing Authorization header", http.StatusUnauthorized)
+		return
+	}
+
+	// Create the proxy request to OpenAI
+	proxyReq, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
+		return
+	}
+
+	// Copy headers
+	proxyReq.Header.Set("Content-Type", "application/json")
+	proxyReq.Header.Set("Authorization", authHeader)
+
+	// Make the request
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(proxyReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("OpenAI request failed: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy the response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}
+
 func (s *Server) HandleGitHubPush(w http.ResponseWriter, r *http.Request) {
 	var req GitHubPushRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1484,6 +1528,9 @@ func (s *Server) Serve(addr string) error {
 	// GitHub integration
 	mux.HandleFunc("POST /api/github/test", s.HandleGitHubTest)
 	mux.HandleFunc("POST /api/github/push", s.HandleGitHubPush)
+
+	// OpenAI proxy (to avoid CORS)
+	mux.HandleFunc("POST /api/openai/chat", s.HandleOpenAIProxy)
 
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
