@@ -27,7 +27,7 @@
       "index": 3
     }
   ],
-  "savedAt": "2026-02-03T18:14:09Z",
+  "savedAt": "2026-02-03T18:14:34Z",
   "scenes": [
     {
       "duration": 5,
@@ -71,7 +71,7 @@
     "frameRate": "30",
     "imageAspectRatio": "16:9",
     "imageResolution": "1024",
-    "projectPath": "LiveSuite Chap4",
+    "projectPath": "LiveSuiteChap5",
     "videoAspectRatio": "16:9"
   },
   "shotSequence": "",

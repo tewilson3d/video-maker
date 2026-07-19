@@ -1,0 +1,33 @@
+{
+  "assets": [],
+  "backgroundColor": "#000000",
+  "canvasHeight": 1080,
+  "canvasWidth": 1920,
+  "id": "29882844-5dae-434b-a407-f4e31f6e4697",
+  "name": "Untitled Project",
+  "savedAt": "2026-02-03T18:14:34.334Z",
+  "timeline": {
+    "currentTime": 0,
+    "duration": 30,
+    "fps": 30,
+    "tracks": [
+      {
+        "clips": [],
+        "id": "8cc94911-ed5c-4f82-8657-68b46d1b226f",
+        "locked": false,
+        "name": "Video 1",
+        "type": "video",
+        "visible": true
+      },
+      {
+        "clips": [],
+        "id": "614298fa-368f-41e9-b681-87c36dc52d06",
+        "locked": false,
+        "name": "Audio 1",
+        "type": "audio",
+        "visible": true
+      }
+    ],
+    "zoom": 1
+  }
+}
